@@ -1,0 +1,4 @@
+void strcpy(u8* dest, u8* src)
+{
+    while (*dest++ = *src++);
+}

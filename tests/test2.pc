@@ -1,0 +1,16 @@
+u32 factorial(u32 value)
+{
+    return (value < 2) ? 1 : (value * factorial(value - 1));
+}
+
+i32 main()
+{
+    u32 i = 0;
+
+    while (i < 100)
+    {
+        factorial(i++);
+    }
+
+    return 0;
+}

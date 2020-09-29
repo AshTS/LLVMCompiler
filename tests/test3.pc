@@ -1,0 +1,17 @@
+u32 main(u32 argc, u8** argv)
+{
+    u32 i = 0, j = 1;
+
+    if 0
+    {
+        ;
+    }
+    else if 0
+    {
+        ;
+    }
+    else
+    {
+        ;
+    }
+}
