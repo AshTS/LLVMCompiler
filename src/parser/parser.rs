@@ -6,7 +6,7 @@ use super::{ParseTreeNode, ExpressionType};
 use crate::cli::Error;
 use super::error::{expected_got_error, unexpected_eof_error};
 
-static TYPES: &[&str] = &["i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "bool", "f32", "f64", "void"];
+static TYPES: &[&str] = &["i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "void"];
 static KEYWORDS: &[&str] = &["loop", "while", "if", "break", "continue", "else", "do", "as"];
 static MAX_EXPRESSION: usize = 17;
 
