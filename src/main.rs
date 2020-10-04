@@ -5,6 +5,7 @@ mod io;
 mod cli;
 mod compile;
 mod parser;
+mod llvm;
 
 fn main()
 {

@@ -1,6 +1,7 @@
 use super::io::InputFile;
 use super::cli::{Error, ErrorRecorder};
 use super::tokenizer::tokenize;
+use super::llvm;
 
 pub fn compile(input: InputFile) -> Result<(), Error>
 {
@@ -14,12 +15,19 @@ pub fn compile(input: InputFile) -> Result<(), Error>
 
     if node.is_some()
     {
-        super::parser::display_parse_tree(node.unwrap(), String::new(), false);
+        super::parser::display_parse_tree(node.clone().unwrap(), String::new(), false);
     }
     else
     {
         println!("Error: No Parse Tree Returned");
     }
+
+    let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);
+    let mut module = llvm::Module::new(target);
+
+    module.load_from_parse_tree(node.clone().unwrap())?;
+
+    println!("Output:\n{}", module);
 
     Ok(())
 }
