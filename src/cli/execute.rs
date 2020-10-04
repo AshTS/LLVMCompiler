@@ -25,7 +25,7 @@ pub fn execute(opts: &Options) -> Result<(), Error>
     // Loop over input files and compile them
     for input_file in input_files
     {
-        recorder.wrap_return(crate::compile::compile(input_file))?;
+        recorder.wrap_return(crate::compile::compile(input_file, opts))?;
     }
 
     Ok(())

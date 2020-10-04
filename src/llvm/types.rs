@@ -17,8 +17,8 @@ pub enum NonPtrType
 #[derive(Debug, Clone, Copy)]
 pub struct DataType
 {
-    raw_type: NonPtrType,
-    num_ptr: usize
+    pub raw_type: NonPtrType,
+    pub num_ptr: usize
 }
 
 impl DataType

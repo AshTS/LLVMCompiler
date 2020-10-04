@@ -89,7 +89,7 @@ pub fn arguments_from_parse_tree(node: ParseTreeNode) -> Result<Vec<(String, Dat
                     }
                     default =>
                     {
-                        expected_got_error("Argument", child.clone())?;
+                        expected_got_error("Argument", default.clone())?;
                     }
                 }
             }
