@@ -6,6 +6,7 @@ mod cli;
 mod compile;
 mod parser;
 mod llvm;
+mod irgen;
 
 fn main()
 {

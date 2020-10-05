@@ -5,5 +5,5 @@ mod error;
 
 pub use target::*;
 pub use types::*;
-pub use elements::Module;
+pub use elements::*;
 pub use error::*;

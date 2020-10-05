@@ -3,7 +3,9 @@ use std::io::Write;
 use super::io::InputFile;
 use super::cli::{Error, ErrorRecorder, Options};
 use super::tokenizer::tokenize;
-use super::llvm;
+use super::irgen;
+
+use super::parser::ParseTreeNode;
 
 pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 {
@@ -24,14 +26,35 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         Err(Error::fatal_error("No Parse Tree Returned"))?
     }
 
-    let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);
-    let mut module = llvm::Module::new(target);
+    let mut functions = vec![];
 
-    module.load_from_parse_tree(node.clone().unwrap())?;
+    match node.unwrap()
+    {
+        ParseTreeNode::Library(children) =>
+        {
+            for child in children
+            {
+                functions.push(irgen::Function::from_parse_tree_node(child)?);
+            }
+        },
+        _ => {}
+    }
+
+    let mut output = String::new();
+
+    for f in functions
+    {
+        output += &format!("{}", f);
+    }
+    
+    //let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);
+    //let mut module = llvm::Module::new(target);
+
+    //module.load_from_parse_tree(node.clone().unwrap())?;
 
     if options.has_long_flag("stdout")
     {
-        println!("Output:\n{}", module);
+        println!("Output:\n{}", output);
     }
     else
     {
@@ -51,7 +74,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
             Err(Error::fatal_error(&format!("Could not create output file '{}'", output_filename)))?;
         }
 
-        if let Err(_error) = write!(file.unwrap(), "{}", module)
+        if let Err(_error) = write!(file.unwrap(), "{}", output)
         {
             Err(Error::fatal_error(&format!("Could not write to output file '{}'", output_filename)))?;
         }
