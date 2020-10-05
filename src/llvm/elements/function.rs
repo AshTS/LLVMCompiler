@@ -77,7 +77,7 @@ impl fmt::Display for Function
 
         writeln!(f, ")")?;
 
-        write!(f, "{{\n{}", self.statement)?;
+        write!(f, "{{\nbr label %start\nstart:\n{}", self.statement)?;
 
         if self.return_type.raw_type == NonPtrType::Void && self.return_type.num_ptr == 0
         {

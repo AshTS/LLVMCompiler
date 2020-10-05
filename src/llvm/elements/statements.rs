@@ -19,12 +19,12 @@ pub enum StatementTypes
     ContinueStatement,
     BreakStatement,
     InitializationStatement,
-    IfStatement,
+    IfStatement(Expression, Vec<Statement>),
     WhileStatement,
     DoWhileStatement,
-    LoopStatement,
+    LoopStatement(Vec<Statement>),
     ReturnStatement(Expression),
-    ExpressionStatement
+    ExpressionStatement(Expression)
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl StatementContext
         Self
         {
             return_type,
-            next_label: 0,
+            next_label: 1,
             loop_entries: vec![],
             loop_exits: vec![]
         }
@@ -55,16 +55,31 @@ impl StatementContext
         self.next_label - 1
     }
 
-    pub fn push_loop(&mut self, start: usize, exit: usize)
+    pub fn push_loop(&mut self) -> (usize, usize)
     {
+        let start = self.get_label();
+        let exit = self.get_label();
+
         self.loop_entries.push(start);
         self.loop_exits.push(exit);
+
+        (start, exit)
     }
 
     pub fn pop_loop(&mut self)
     {
         self.loop_entries.pop();
         self.loop_exits.pop();
+    }
+
+    pub fn get_continue(&self) -> usize
+    {
+        self.loop_entries[self.loop_entries.len() - 1]
+    }
+
+    pub fn get_break(&self) -> usize
+    {
+        self.loop_exits[self.loop_exits.len() - 1]
     }
 }
 
@@ -118,9 +133,13 @@ impl Statement
                                     unreachable!();
                                 }
                             },
+                            ParseTreeNode::Expression(_, _) =>
+                            {
+                                Statement::new(StatementTypes::ExpressionStatement(Expression::from_parse_tree_node(children[0].clone(), &context.clone())?), context.clone())
+                            }
                             default =>
                             {
-                                expected_got_error("RawToken", default.clone())?;
+                                expected_got_error("RawToken or Expression", default.clone())?;
                                 unreachable!();
                             }
                         }
@@ -137,10 +156,22 @@ impl Statement
 
                     Statement::new(StatementTypes::CompoundStatement(statements), context.clone())
                 },
+                ParseTreeNode::IfStatement(children) =>
+                {
+                    let expr = Expression::from_parse_tree_node(children[0].clone(), &context.clone())?;
+                    let statements = vec![Statement::from_parse_tree_node(children[1].clone(), context)?,
+                                          Statement::from_parse_tree_node(children[2].clone(), context)?];
+                    Statement::new(StatementTypes::IfStatement(expr, statements), context.clone())
+                },
+                ParseTreeNode::Loop(children) =>
+                {
+                    let statements = vec![Statement::from_parse_tree_node(children[0].clone(), context)?];
+                    Statement::new(StatementTypes::LoopStatement(statements), context.clone())
+                },
                 ParseTreeNode::ReturnStatement(children) =>
                 {
-                    Statement::new(StatementTypes::ReturnStatement(Expression::from_parse_tree_node(children[0].clone())?), context.clone())
-                }
+                    Statement::new(StatementTypes::ReturnStatement(Expression::from_parse_tree_node(children[0].clone(), &context.clone())?), context.clone())
+                },
                 default => 
                 {
                     expected_got_error("A Statement", default)?;
@@ -167,19 +198,29 @@ impl fmt::Display for Statement
             },
             StatementTypes::ContinueStatement =>
             {
-                unimplemented!();
+                writeln!(f, "br label %a{}", self.context.borrow().get_continue())?;
             },
             StatementTypes::BreakStatement =>
             {
-                unimplemented!();
+                writeln!(f, "br label %a{}", self.context.borrow().get_break())?;
             },
             StatementTypes::InitializationStatement =>
             {
                 unimplemented!();
             },
-            StatementTypes::IfStatement =>
+            StatementTypes::IfStatement(expr, statements) =>
             {
-                unimplemented!();
+                let temp = format!("%a{}", self.context.borrow_mut().get_label());
+                let body_label = self.context.borrow_mut().get_label();
+                let else_label = self.context.borrow_mut().get_label();
+
+                write!(f, "{}", expr)?;
+                writeln!(f, "{} = icmp ne i32 {}, 0", temp, expr.get_symbol())?;
+                writeln!(f, "br i1 {}, label %a{}, label %a{}", temp, body_label, else_label)?;
+                writeln!(f, "a{}:", body_label)?;
+                write!(f, "{}", statements[0])?;
+                writeln!(f, "a{}:", else_label)?;
+                write!(f, "{}", statements[1])?;
             },
             StatementTypes::WhileStatement =>
             {
@@ -189,9 +230,18 @@ impl fmt::Display for Statement
             {
                 unimplemented!();
             },
-            StatementTypes::LoopStatement =>
+            StatementTypes::LoopStatement(children) =>
             {
-                unimplemented!();
+                let (continue_label, break_label) = self.context.borrow_mut().push_loop();
+
+                writeln!(f, "a{}:", continue_label)?;
+
+                write!(f, "{}", children[0])?;
+                writeln!(f, "br label %a{}", continue_label)?;
+
+                writeln!(f, "a{}:", break_label)?;
+
+                self.context.borrow_mut().pop_loop();
             },
             StatementTypes::ReturnStatement(expr) =>
             {
@@ -201,9 +251,9 @@ impl fmt::Display for Statement
 
                 writeln!(f, "ret {} {}", self.context.borrow().return_type, symbol)?;
             },
-            StatementTypes::ExpressionStatement =>
+            StatementTypes::ExpressionStatement(expr) =>
             {
-                unimplemented!();
+                write!(f, "{}", expr)?;
             }
         }
 

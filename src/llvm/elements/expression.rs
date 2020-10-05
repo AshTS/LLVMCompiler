@@ -6,6 +6,9 @@ use crate::parser::ParseTreeNode;
 
 use crate::cli::Error;
 
+use std::cell::RefCell;
+use super::StatementContext;
+
 
 #[derive(Debug, Clone)]
 pub enum ExpressionType
@@ -18,30 +21,32 @@ pub enum ExpressionType
 #[derive(Debug, Clone)]
 pub struct Expression
 {
-    expr_type: ExpressionType
+    expr_type: ExpressionType,
+    context: RefCell<StatementContext>
 }
 
 impl Expression
 {
-    pub fn new(expr_type: ExpressionType) -> Self
+    pub fn new(expr_type: ExpressionType, context: RefCell<StatementContext>) -> Self
     {
         Self
         {
-            expr_type
+            expr_type,
+            context
         }
     }
 
-    pub fn from_parse_tree_node(node: ParseTreeNode) -> Result<Self, Error>
+    pub fn from_parse_tree_node(node: ParseTreeNode, context: &RefCell<StatementContext>) -> Result<Self, Error>
     {
         match &node
         {
             ParseTreeNode::IntegerLiteral(token) =>
             {
-                Ok(Expression::new(ExpressionType::IntegerLiteral(i128::from_str_radix(token.data.as_str(), 10).unwrap())))
+                Ok(Expression::new(ExpressionType::IntegerLiteral(i128::from_str_radix(token.data.as_str(), 10).unwrap()), context.clone()))
             },
             ParseTreeNode::Identifier(token) =>
             {
-                Ok(Expression::new(ExpressionType::Identifier(token.data.clone())))
+                Ok(Expression::new(ExpressionType::Identifier(token.data.clone()), context.clone()))
             },
             default =>
             {
