@@ -1,5 +1,6 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 use crate::llvm::{DataType, NonPtrType};
 
@@ -8,12 +9,20 @@ use crate::parser::ParseTreeNode;
 use crate::llvm::{expected_got_error};
 use crate::llvm::{identifier_from_parse_tree, type_from_parse_tree, arguments_from_parse_tree};
 
+use super::Statement;
+
 use crate::cli::Error;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OpCode
 {
-    Ret
+    Alloc,
+    Ret,
+    Nop,
+    Jmp,
+    Mov,
+    Bne, // Branch Not Equals
+    Beq, // Branch Equals
 }
 
 #[derive(Debug, Clone)]
@@ -113,11 +122,11 @@ impl fmt::Display for Instruction
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        write!(f, "{:?}  ", self.opcode)?;
+        write!(f, "{:<7}", format!("{:?}", self.opcode).to_lowercase())?;
 
         for arg in &self.arguments
         {
-            write!(f, "{:20}", arg)?;
+            write!(f, "{:<15}", format!("{}", arg))?;
         }
 
         Ok(())
@@ -130,7 +139,7 @@ pub struct Function
     pub instructions: HashMap<usize, Instruction>,
     pub labels: HashMap<usize, Vec<String>>,
 
-    symbol_table: HashMap<String, Symbol>,
+    pub symbol_table: HashMap<String, Symbol>,
 
     return_type: DataType,
     name: String,
@@ -138,7 +147,10 @@ pub struct Function
 
     next_label: usize,
     next_register: usize,
-    next_index: usize
+    next_index: usize,
+
+    continue_stack: Vec<String>,
+    break_stack: Vec<String>
 }
 
 impl Function
@@ -158,31 +170,46 @@ impl Function
 
             next_label: 0,
             next_register: 0,
-            next_index: 0
+            next_index: 0,
+
+            continue_stack: vec![],
+            break_stack: vec![]
         }
     }
 
     pub fn from_parse_tree_node(node: ParseTreeNode) -> Result<Self, Error>
     {
-        let mut result = Self::new();
-
         match node
         {
             ParseTreeNode::Function(children) =>
             {
+                let mut result = Self::new();
+
                 let name = identifier_from_parse_tree(children[1].clone())?;
                 let return_type = type_from_parse_tree(children[0].clone())?;
                 let arguments = arguments_from_parse_tree(children[2].clone())?;
 
                 result.set_function_signature(return_type, name, arguments);
+
+                let refcell = RefCell::new(&mut result);
+
+                let statement = Statement::from_parse_tree_node(children[3].clone(), &refcell)?;
+
+                statement.render(&refcell)?;
+
+                // Add the exit label
+                refcell.borrow_mut().place_label_here(String::from("exit"));
+                refcell.borrow_mut().add_instruction(Instruction::new(OpCode::Nop, vec![]));
+
+                let finalresult = refcell.borrow_mut().clone();
+                Ok(finalresult)
+
             },
             default =>
             {
-                expected_got_error("Function", default)?;
+                expected_got_error("Function", default)
             }
         }
-
-        Ok(result)
     }
 
     pub fn set_function_signature(&mut self, return_type: DataType, name: String, arguments: Vec<(String, DataType)>)
@@ -206,6 +233,18 @@ impl Function
         else
         {
             self.labels.insert(index, vec![label]);
+        }
+    }
+
+    pub fn place_label_here(&mut self, label: String)
+    {
+        if self.labels.contains_key(&self.next_index)
+        {
+            self.labels.get_mut(&self.next_index).unwrap().push(label);
+        }
+        else
+        {
+            self.labels.insert(self.next_index, vec![label]);
         }
     }
 
@@ -235,6 +274,47 @@ impl Function
     {
         self.instructions.insert(self.next_index, inst);
         self.next_index += 1;
+    }
+
+    pub fn enter_loop(&mut self) -> (String, String)
+    {
+        let entry = self.get_label();
+        let exit = self.get_label();
+
+        self.continue_stack.push(entry.clone());
+        self.break_stack.push(exit.clone());
+
+        (entry, exit)
+    }
+
+    pub fn exit_loop(&mut self)
+    {
+        self.continue_stack.pop();
+        self.break_stack.pop();
+    }
+
+    pub fn get_continue(&mut self) -> Option<String>
+    {
+        if self.continue_stack.len() > 0
+        {
+            Some(self.continue_stack[self.continue_stack.len() - 1].clone())
+        }
+        else
+        {
+            None
+        }
+    }
+
+    pub fn get_break(&mut self) -> Option<String>
+    {
+        if self.break_stack.len() > 0
+        {
+            Some(self.break_stack[self.continue_stack.len() - 1].clone())
+        }
+        else
+        {
+            None
+        }
     }
 }
 

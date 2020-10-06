@@ -1,4 +1,6 @@
 i32 main()
 {
-    return 13;
+    i32 a = 0;
+
+    return a;
 }

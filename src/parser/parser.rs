@@ -603,6 +603,18 @@ fn parse_expression(orig_stream: &Stream)  -> Result<(Stream, ParseTreeNode), Er
     recursive_expression(&stream, MAX_EXPRESSION)
 }
 
+/// Parse out an expression without comma expressions
+fn parse_expression_no_comma(orig_stream: &Stream)  -> Result<(Stream, ParseTreeNode), Error>
+{
+    let stream = orig_stream.clone();
+
+    // Make sure the stream isn't exhausted
+    stream.expect_current_exists("expression")?;
+
+    // Simplest expression is just a number
+    recursive_expression(&stream, MAX_EXPRESSION - 1)
+}
+
 /// Parse out an assignment
 fn parse_assignment(orig_stream: &Stream)  -> Result<(Stream, ParseTreeNode), Error>
 {
@@ -619,7 +631,7 @@ fn parse_assignment(orig_stream: &Stream)  -> Result<(Stream, ParseTreeNode), Er
     stream.expect_and_consume(String::from("="))?;
 
     // Finally, an expression
-    let expr = stream.accept_stream(parse_expression(&stream))?;
+    let expr = stream.accept_stream(parse_expression_no_comma(&stream))?;
     items.push(expr);
 
     Ok((stream, ParseTreeNode::Assignment(items)))

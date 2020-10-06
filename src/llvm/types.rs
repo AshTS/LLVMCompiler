@@ -11,7 +11,9 @@ pub enum NonPtrType
     U32,
     I64,
     U64,
-    Void
+    Void,
+    Bool,
+    Unknown
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -39,6 +41,7 @@ impl fmt::Display for DataType
     {
         write!(f, "{}", match self.raw_type
         {
+            NonPtrType::Bool => "i1",
             NonPtrType::I8 => "i8",
             NonPtrType::U8 => "u8",
             NonPtrType::I16 => "i16",
@@ -47,7 +50,8 @@ impl fmt::Display for DataType
             NonPtrType::U32 => "u32",
             NonPtrType::I64 => "i64",
             NonPtrType::U64 => "u64",
-            NonPtrType::Void => "void"
+            NonPtrType::Void => "void",
+            NonPtrType::Unknown => "Unk"
         })?;
 
         for _ in 0..self.num_ptr
