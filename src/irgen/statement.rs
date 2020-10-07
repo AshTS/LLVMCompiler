@@ -425,7 +425,8 @@ impl Statement
 
                 // Then add the return statement
                 let val = e.value(func)?;
-                func.borrow_mut().add_instruction(Instruction::new(OpCode::Ret, vec![val]));
+                let ret_val = func.borrow().return_value.clone();
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![ret_val, val]));
 
                 // Then jump to the exit
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Jmp, vec![Value::Label(String::from("exit"))]))

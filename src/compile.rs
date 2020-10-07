@@ -44,7 +44,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 
     for f in functions
     {
-        output += &format!("{}", f);
+        output += &format!("{}\n", f);
     }
     
     //let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);

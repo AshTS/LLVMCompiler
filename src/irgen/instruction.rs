@@ -172,7 +172,9 @@ pub struct Function
     next_index: usize,
 
     continue_stack: Vec<String>,
-    break_stack: Vec<String>
+    break_stack: Vec<String>,
+
+    pub return_value: Value
 }
 
 impl Function
@@ -191,11 +193,13 @@ impl Function
             arguments: vec![],
 
             next_label: 0,
-            next_register: 0,
+            next_register: 1,
             next_index: 0,
 
             continue_stack: vec![],
-            break_stack: vec![]
+            break_stack: vec![],
+
+            return_value: Value::Symbol(Symbol::new(String::from("R0"), DataType::new(NonPtrType::Void, 0)))
         }
     }
 
@@ -215,13 +219,16 @@ impl Function
 
                 let refcell = RefCell::new(&mut result);
 
+                refcell.borrow_mut().return_value = Value::Symbol(Symbol::new(String::from("R0"), return_type.clone()));
+
                 let statement = Statement::from_parse_tree_node(children[3].clone(), &refcell)?;
 
                 statement.render(&refcell)?;
 
                 // Add the exit label
                 refcell.borrow_mut().place_label_here(String::from("exit"));
-                refcell.borrow_mut().add_instruction(Instruction::new(OpCode::Nop, vec![]));
+                let ret_val = refcell.borrow().return_value.clone();
+                refcell.borrow_mut().add_instruction(Instruction::new(OpCode::Ret, vec![ret_val]));
 
                 let finalresult = refcell.borrow_mut().clone();
                 Ok(finalresult)

@@ -1,4 +1,4 @@
 i32 main()
 {
-    return test(0);
+    return 0;
 }

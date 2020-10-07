@@ -266,9 +266,27 @@ impl Expression
                             new_children.push(Expression::from_parse_tree_node(child.clone(), func)?);
                         }
 
-                        println!("{:?}", new_children);
-
                         Ok(Expression::new(ExpressionType::FunctionCall, Some(Value::Label(func_name)), new_children))
+                    },
+                    ExpressionTypeP::LogicalAnd =>
+                    {
+                        let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
+                        let child1 = Expression::from_parse_tree_node(children[1].clone(), func)?;
+
+                        Ok(Expression::new(ExpressionType::LogicalAnd, None, vec![
+                            child0,
+                            child1
+                        ]))
+                    },
+                    ExpressionTypeP::LogicalOr =>
+                    {
+                        let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
+                        let child1 = Expression::from_parse_tree_node(children[1].clone(), func)?;
+
+                        Ok(Expression::new(ExpressionType::LogicalOr, None, vec![
+                            child0,
+                            child1
+                        ]))
                     },
                     default => {panic!("{:?}", default);}
                 }
@@ -608,6 +626,90 @@ impl Expression
 
                 self.value = Some(value.clone());
 
+            },
+            ExpressionType::LogicalAnd =>
+            {
+                let body = func.borrow_mut().get_label();
+                let clause = func.borrow_mut().get_label();
+                let exit = func.borrow_mut().get_label();
+
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                self.value = Some(value.clone());
+
+                self.children[0].render(func)?;
+
+                // Perform the comparison
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
+                    self.children[0].value(func)?, 
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Label(body.clone()),
+                    Value::Label(clause.clone())]));
+
+                // Place the body label
+                func.borrow_mut().place_label_here(body.clone());
+
+                self.children[1].render(func)?;
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
+                    value.clone(),
+                    self.children[1].value(func)?,
+                    ]));
+
+                // Add a jump statement to skip the clause
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Jmp, vec![Value::Label(exit.clone())]));
+
+                // Place the clause label
+                func.borrow_mut().place_label_here(clause.clone());
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
+                    value,
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    ]));
+
+                // Place the exit label
+                func.borrow_mut().place_label_here(exit.clone());
+            },
+            ExpressionType::LogicalOr =>
+            {
+                let body = func.borrow_mut().get_label();
+                let clause = func.borrow_mut().get_label();
+                let exit = func.borrow_mut().get_label();
+
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                self.value = Some(value.clone());
+
+                self.children[0].render(func)?;
+
+                // Perform the comparison
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
+                    self.children[0].value(func)?, 
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Label(body.clone()),
+                    Value::Label(clause.clone())]));
+
+                // Place the body label
+                func.borrow_mut().place_label_here(body.clone());
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
+                    value.clone(),
+                    Value::Literal(Literal::new(1, DataType::new(NonPtrType::Unknown, 0))),
+                    ]));
+
+                // Add a jump statement to skip the clause
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Jmp, vec![Value::Label(exit.clone())]));
+
+                // Place the clause label
+                func.borrow_mut().place_label_here(clause.clone());
+
+                self.children[1].render(func)?;
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
+                    value.clone(),
+                    self.children[1].value(func)?,
+                    ]));
+
+                // Place the exit label
+                func.borrow_mut().place_label_here(exit.clone());
             },
             _ => {unimplemented!()}
         }
