@@ -16,7 +16,7 @@ pub enum NonPtrType
     Unknown
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DataType
 {
     pub raw_type: NonPtrType,

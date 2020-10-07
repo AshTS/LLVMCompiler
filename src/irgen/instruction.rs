@@ -21,15 +21,37 @@ pub enum OpCode
     Nop,
     Jmp,
     Mov,
+    Cne, // Compare Not Equal
+    Ceq, // Compare Equal
+    Clt, // Compare Less Than
+    Cgt, // Compare Greater Than
+    Cle, // Compare Less than or Equal
+    Cge, // Compare Greater than or Equal
     Bne, // Branch Not Equals
     Beq, // Branch Equals
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Shl, // Shift Left
+    Shr, // Shift Right
+    And,
+    Or,
+    Xor,
+    Cast,
+    Deref,
+    Ref,
+    Array,
+    Push,
+    Call
 }
 
 #[derive(Debug, Clone)]
 pub struct Symbol
 {
     title: String,
-    datatype: DataType
+    pub datatype: DataType
 }
 
 impl Symbol
@@ -56,7 +78,7 @@ impl fmt::Display for Symbol
 pub struct Literal
 {
     value: i128,
-    datatype: DataType
+    pub datatype: DataType
 }
 
 impl Literal

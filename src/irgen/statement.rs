@@ -1,4 +1,4 @@
-use super::{Function, Value, Literal, Expression, Instruction, OpCode, Symbol};
+use super::{Function, Value, Literal, Expression, Instruction, OpCode, Symbol, attempt_mutate_type};
 
 use crate::cli::Error;
 
@@ -290,23 +290,26 @@ impl Statement
             },
             StatementType::InitializationStatement =>
             {
-                let e = self.expr.clone().unwrap();
+                let mut e = self.expr.clone().unwrap();
                 let symbol = func.borrow_mut().symbol_table.get(&self.init_data.clone().unwrap().1).unwrap().clone();
 
                 // Render the expression
                 e.render(func.clone())?;
 
+                let value = attempt_mutate_type(e.value(func)?, symbol.datatype);
+
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Alloc, vec![
                     Value::Symbol(symbol),
-                    e.value(func)?
+                    value
                     ]));
             },
             StatementType::IfStatement =>
             {
                 let body = func.borrow_mut().get_label();
                 let clause = func.borrow_mut().get_label();
+                let exit = func.borrow_mut().get_label();
 
-                let e = self.expr.clone().unwrap();
+                let mut e = self.expr.clone().unwrap();
 
                 // Render the expression
                 e.render(func.clone())?;
@@ -324,18 +327,24 @@ impl Statement
                 // Render the body
                 self.children[0].render(func)?;
 
+                // Add a jump statement to skip the clause
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Jmp, vec![Value::Label(exit.clone())]));
+
                 // Place the clause label
                 func.borrow_mut().place_label_here(clause.clone());
 
                 // Render the clause
                 self.children[0].render(func)?;
+
+                // Place the exit label
+                func.borrow_mut().place_label_here(exit.clone());
             },
             StatementType::WhileStatement =>
             {
                 let (start, end) = func.borrow_mut().enter_loop();
                 let allow = func.borrow_mut().get_label();
 
-                let e = self.expr.clone().unwrap();
+                let mut e = self.expr.clone().unwrap();
 
                 // Add a label to the start of the loop
                 func.borrow_mut().place_label_here(start.clone());
@@ -366,7 +375,7 @@ impl Statement
             {
                 let (start, end) = func.borrow_mut().enter_loop();
 
-                let e = self.expr.clone().unwrap();
+                let mut e = self.expr.clone().unwrap();
 
                 // Add a label to the start of the loop
                 func.borrow_mut().place_label_here(start.clone());
@@ -409,7 +418,7 @@ impl Statement
             },
             StatementType::ReturnStatement =>
             {
-                let e = self.expr.clone().unwrap();
+                let mut e = self.expr.clone().unwrap();
 
                 // Render the expression
                 e.render(func.clone())?;
