@@ -1,4 +1,13 @@
 i32 main()
 {
-    return 0;
+    loop
+    {
+        break;
+    }
+
+    loop
+    {
+    }
+
+    return 5;
 }

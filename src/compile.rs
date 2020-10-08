@@ -34,7 +34,10 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         {
             for child in children
             {
-                functions.push(irgen::Function::from_parse_tree_node(child)?);
+                let mut function = irgen::Function::from_parse_tree_node(child)?;
+                function = irgen::optimize_function(function);
+
+                functions.push(function);
             }
         },
         _ => {}
@@ -80,6 +83,5 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         }
     }
     
-
     Ok(())
 }

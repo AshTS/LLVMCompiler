@@ -247,7 +247,10 @@ impl Statement
     {
         match self.mode
         {
-            StatementType::Empty =>{},
+            StatementType::Empty =>
+            {
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Nop, vec![]))
+            },
             StatementType::CompoundStatement =>
             {
                 // Loop over all children and render those statements

@@ -29,6 +29,10 @@ pub enum OpCode
     Cge, // Compare Greater than or Equal
     Bne, // Branch Not Equals
     Beq, // Branch Equals
+    Blt,
+    Bgt,
+    Ble,
+    Bge,
     Add,
     Sub,
     Mul,
@@ -124,8 +128,8 @@ impl fmt::Display for Value
 #[derive(Debug, Clone)]
 pub struct Instruction
 {
-    opcode: OpCode,
-    arguments: Vec<Value>
+    pub opcode: OpCode,
+    pub arguments: Vec<Value>
 }
 
 impl Instruction
@@ -160,6 +164,7 @@ pub struct Function
 {
     pub instructions: HashMap<usize, Instruction>,
     pub labels: HashMap<usize, Vec<String>>,
+    pub labels_reverse: HashMap<String, usize>,
 
     pub symbol_table: HashMap<String, Symbol>,
 
@@ -185,6 +190,7 @@ impl Function
         {
             instructions: HashMap::new(),
             labels: HashMap::new(),
+            labels_reverse: HashMap::new(),
 
             symbol_table: HashMap::new(),
 
@@ -253,28 +259,93 @@ impl Function
         }
     }
 
+    pub fn get_jump_value(&self, index: usize) -> Option<usize>
+    {
+        let inst = self.instructions.get(&index);
+
+        if inst.is_some()
+        {
+            if inst.unwrap().opcode != OpCode::Call
+            {
+                for val in &inst.unwrap().arguments
+                {
+                    match val
+                    {
+                        Value::Label(s) =>
+                        {
+                            let v = *self.labels_reverse.get(s).unwrap();
+
+                            return Some(v);
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn change_to_nop(&mut self, index: usize)
+    {
+        self.instructions.get_mut(&index).unwrap().opcode = OpCode::Nop;
+        self.instructions.get_mut(&index).unwrap().arguments = vec![];
+    }
+
+    pub fn get_next_branches(&self, index: usize) -> Vec<usize>
+    {
+        let mut result = vec![];
+
+        if index < self.instructions.len() - 1 && self.instructions.get(&index).unwrap().opcode != OpCode::Jmp
+        {
+            result.push(index + 1);
+        }
+
+        let inst = self.instructions.get(&index);
+
+        if inst.is_some()
+        {
+            if inst.unwrap().opcode != OpCode::Call
+            {
+                for val in &inst.unwrap().arguments
+                {
+                    match val
+                    {
+                        Value::Label(s) =>
+                        {
+                            let v = *self.labels_reverse.get(s).unwrap();
+
+                            if !result.contains(&v)
+                            {
+                                result.push(v);
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        result
+    } 
+
     pub fn place_label(&mut self, label: String, index: usize)
     {
         if self.labels.contains_key(&index)
         {
-            self.labels.get_mut(&index).unwrap().push(label);
+            self.labels.get_mut(&index).unwrap().push(label.clone());
         }
         else
         {
-            self.labels.insert(index, vec![label]);
+            self.labels.insert(index, vec![label.clone()]);
         }
+
+        self.labels_reverse.insert(label.clone(), index);
     }
 
     pub fn place_label_here(&mut self, label: String)
     {
-        if self.labels.contains_key(&self.next_index)
-        {
-            self.labels.get_mut(&self.next_index).unwrap().push(label);
-        }
-        else
-        {
-            self.labels.insert(self.next_index, vec![label]);
-        }
+        self.place_label(label, self.next_index);
     }
 
     pub fn get_label(&mut self) -> String
@@ -345,6 +416,35 @@ impl Function
             None
         }
     }
+
+    pub fn get_explored_from(&self, index: usize) -> Vec<usize>
+    {
+        let mut fronts= vec![index];
+        let mut explored = vec![];
+
+        // While there are still instructions to explore
+        while fronts.len() > 0
+        {
+            let mut next_fronts = vec![];
+
+            for front in fronts
+            {
+                explored.push(front);
+
+                for v in self.get_next_branches(front)
+                {
+                    if !explored.contains(&v) && !next_fronts.contains(&v)
+                    {
+                        next_fronts.push(v);
+                    }
+                }
+            }
+
+            fronts = next_fronts;
+        }
+
+        explored
+    }
 }
 
 impl fmt::Display for Function
@@ -365,7 +465,7 @@ impl fmt::Display for Function
 
         writeln!(f, ")")?;
 
-        for i in 0..self.next_index
+        for i in 0..self.instructions.len()
         {
             write!(f, "{:03} ", i)?;
 
@@ -381,7 +481,16 @@ impl fmt::Display for Function
 
             write!(f, "{:15}", labels_str)?;
 
-            writeln!(f, "{}", self.instructions.get(&i).unwrap())?;
+            let inst = self.instructions.get(&i);
+
+            if inst.is_none()
+            {
+                writeln!(f, "[Line Removed]")?;
+            }
+            else
+            {
+                writeln!(f, "{}", inst.unwrap())?;
+            }
         }
 
         Ok(())

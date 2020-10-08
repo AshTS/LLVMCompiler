@@ -7,7 +7,7 @@ i32 main()
 {
     u32 i = 0;
 
-    while (i < 100)
+    while (i < 5)
     {
         factorial(i++);
     }
