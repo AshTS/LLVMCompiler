@@ -51,10 +51,10 @@ pub enum OpCode
     Call
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Symbol
 {
-    title: String,
+    pub title: String,
     pub datatype: DataType
 }
 
@@ -78,7 +78,7 @@ impl fmt::Display for Symbol
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Literal
 {
     value: i128,
@@ -105,7 +105,7 @@ impl fmt::Display for Literal
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value
 {
     Symbol(Symbol),
@@ -170,7 +170,7 @@ pub struct Function
 
     return_type: DataType,
     name: String,
-    arguments: Vec<(String, DataType)>,
+    pub arguments: Vec<(String, DataType)>,
 
     next_label: usize,
     next_register: usize,
@@ -444,6 +444,79 @@ impl Function
         }
 
         explored
+    }
+
+    pub fn has_side_effects(&self, index: usize) -> bool
+    {
+        match self.instructions.get(&index)
+        {
+            Some(v) =>
+            {
+                v.opcode == OpCode::Call
+            },
+            None => false
+        }
+    }
+
+    pub fn get_reads_writes_for(&self, value: Value) -> (Vec<usize>, Vec<usize>)
+    {
+        let mut reads = vec![];
+        let mut writes = vec![];
+
+        for (index, inst) in &self.instructions
+        {
+            if inst.arguments.len() > 0
+            {
+                match inst.opcode
+                {
+                    OpCode::Beq | OpCode::Bge | OpCode::Bgt | OpCode::Ble | OpCode::Blt | OpCode::Bne | OpCode::Push | OpCode::Ret =>
+                    {
+                        if inst.arguments.contains(&value)
+                        {
+                            reads.push(*index);
+                        }
+                    },
+                    _ => 
+                    {
+                        if inst.arguments[0] == value
+                        {
+                            writes.push(*index);
+                        }
+                        
+                        if inst.arguments.len() > 1
+                        {
+                            if inst.arguments[1..inst.arguments.len()].contains(&value)
+                            {
+                                reads.push(*index);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        (reads, writes)
+    }
+
+    pub fn get_all_symbols(&self) -> Vec<Symbol>
+    {
+        let mut result = vec![];
+
+        for (_, inst) in &self.instructions
+        {
+            for val in &inst.arguments
+            {
+                if let Value::Symbol(symbol) = val
+                {
+                    if !result.contains(symbol)
+                    {
+                        result.push(symbol.clone());
+                    }
+                } 
+            }
+        }
+
+        result
     }
 }
 

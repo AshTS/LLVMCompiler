@@ -1,13 +1,6 @@
 i32 main()
 {
-    loop
-    {
-        break;
-    }
-
-    loop
-    {
-    }
+    i32 a = 5;
 
     return 5;
 }
