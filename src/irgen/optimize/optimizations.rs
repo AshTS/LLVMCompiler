@@ -1,6 +1,6 @@
 use crate::irgen::{Function, Value, OpCode};
 
-pub fn optimize_function(f: Function) -> Function
+pub fn optimize_function(f: Function, level: usize) -> Function
 {
     let mut func = f.clone();
 
@@ -9,10 +9,19 @@ pub fn optimize_function(f: Function) -> Function
         let last = func.clone();
 
         func = optimization_remove_nop(func);
-        func = optimization_clean_registers(func);
-        func = optimization_remove_nop(func);
-        func = optimization_jump_chaining(func);
-        func = optimization_remove_nop(func);
+
+        if level >= 2
+        {
+            func = optimization_clean_registers(func);
+            func = optimization_remove_nop(func);
+        }
+
+        if level >= 1
+        {
+            func = optimization_jump_chaining(func);
+            func = optimization_remove_nop(func);
+        }
+
         func = optimization_dead_code(func);
         func = optimization_remove_nop(func);
 

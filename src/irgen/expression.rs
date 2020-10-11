@@ -493,9 +493,13 @@ impl Expression
             ExpressionType::Cast(datatype) =>
             {
                 self.children[0].render(func)?;
-                let val0 = self.children[0].value(func)?;
+                let mut val0 = self.children[0].value(func)?;
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype.clone())));
+                let corrected_type = correct_type_references(datatype.clone());
+
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), corrected_type.clone()));
+
+                val0 = attempt_mutate_type(val0, corrected_type);
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Cast, vec![
                     value.clone(),
@@ -591,6 +595,7 @@ impl Expression
             ExpressionType::UnaryOperation(opcode, delta) =>
             {
                 self.children[0].render(func)?;
+
                 let val0 = self.children[0].value(func)?;
 
                 let mut datatype = get_value_type(&val0).unwrap();

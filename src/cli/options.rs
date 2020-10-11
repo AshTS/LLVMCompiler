@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-static ACCEPT_ARGUMENTS: &[&str] = &["-o", "--out", "-g"];
+static ACCEPT_ARGUMENTS: &[&str] = &["-o", "--out", "-g", "-O"];
 
 #[derive(Debug, Clone)]
 pub struct Options

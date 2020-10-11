@@ -1,3 +1,5 @@
+mod avrasm;
+
 use crate::cli::{Error};
 
 use crate::irgen::Function;
@@ -57,7 +59,7 @@ impl CodeGenerator
             },
             CodegenMode::AvrAssembly =>
             {
-                unimplemented!();
+                result = format!("{}", avrasm::AvrAsmGenerator::new(self.functions.clone()).render()?)
             }
         }
 

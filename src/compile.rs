@@ -18,13 +18,23 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 
     let node = recorder.wrap_return(super::parser::parse(tokens))?;
 
-    if node.is_some()
-    {
-        super::parser::display_parse_tree(node.clone().unwrap(), String::new(), false);
-    }
-    else
+    if node.is_none()
     {
         Err(Error::fatal_error("No Parse Tree Returned"))?
+    }
+
+    let mut optimization_level = 0;
+
+    if let Some(level) = options.map.get("-O")
+    {
+        if let Ok(val) = level[0].as_str().parse::<usize>()
+        {
+            optimization_level = val;
+        }
+        else
+        {
+            Err(Error::fatal_error(&format!("Bad optimization level '{}'", level[0])))?
+        }
     }
 
     let mut functions = vec![];
@@ -36,7 +46,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
             for child in children
             {
                 let mut function = irgen::Function::from_parse_tree_node(child)?;
-                function = irgen::optimize_function(function);
+                function = irgen::optimize_function(function, optimization_level);
 
                 functions.push(function);
             }

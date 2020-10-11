@@ -81,7 +81,7 @@ impl fmt::Display for Symbol
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Literal
 {
-    value: i128,
+    pub value: i128,
     pub datatype: DataType
 }
 
@@ -168,8 +168,8 @@ pub struct Function
 
     pub symbol_table: HashMap<String, Symbol>,
 
-    return_type: DataType,
-    name: String,
+    pub return_type: DataType,
+    pub name: String,
     pub arguments: Vec<(String, DataType)>,
 
     next_label: usize,
@@ -515,6 +515,27 @@ impl Function
                 } 
             }
         }
+
+        result
+    }
+
+    pub fn render_signature(&self) -> String
+    {
+        let mut result = String::new();
+
+        result += &format!("{} {}(", self.return_type, self.name);
+
+        for (i, (t, n)) in (&self.arguments).iter().enumerate()
+        {
+            result += &format!("{} {}", t, n);
+
+            if i != self.arguments.len() - 1
+            {
+                result += ", ";
+            }
+        }
+
+        result += ")";
 
         result
     }
