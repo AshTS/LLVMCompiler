@@ -4,8 +4,12 @@ pub fn display_help()
     println!("Usage: compiler [options] file...");
     println!("Options:");
     println!("     --help               Display this page");
+    println!(" -g            [MODE]     Set the code gen mode to use");
     println!(" -o            [FILE]     Redirect the output to the given file");
     println!("     --stdout             Display the output on stdout");
+    println!("\nAllowable Codegen Modes:");
+    println!("   ir");
+    println!("   avrasm");
 }
 
 // Display the version page

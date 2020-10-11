@@ -1,7 +1,12 @@
-u8 main()
+void main()
 {
+    // Sets Pin 9 to High
+
+    // Set DDRB to 0b00000010
     *(36 as u8*) = 2;
+
+    // Set PORTB to 0b00000010
     *(37 as u8*) = 2;
 
-    return 0;
+    loop;
 }

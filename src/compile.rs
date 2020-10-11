@@ -4,6 +4,7 @@ use super::io::InputFile;
 use super::cli::{Error, ErrorRecorder, Options};
 use super::tokenizer::tokenize;
 use super::irgen;
+use super::codegen::{CodeGenerator, CodegenMode};
 
 use super::parser::ParseTreeNode;
 
@@ -43,13 +44,15 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         _ => {}
     }
 
-    let mut output = String::new();
+    let mut codegen_mode = CodegenMode::IntermediateRepresentation;
 
-    for f in functions
+    if let Some(name) = options.map.get("-g")
     {
-        output += &format!("{}\n", f);
+        codegen_mode = CodegenMode::from_mode(&name[0]);
     }
-    
+
+    let output = CodeGenerator::new(codegen_mode, functions).render()?;
+
     //let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);
     //let mut module = llvm::Module::new(target);
 

@@ -1,4 +1,4 @@
-use crate::irgen::{Function, Instruction, Value, OpCode, Symbol};
+use crate::irgen::{Function, Value, OpCode};
 
 pub fn optimize_function(f: Function) -> Function
 {
