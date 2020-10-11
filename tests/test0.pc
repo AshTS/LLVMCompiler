@@ -1,6 +1,7 @@
-i32 main()
+u8 main()
 {
-    i32 a = 5;
+    *(36 as u8*) = 2;
+    *(37 as u8*) = 2;
 
-    return 5;
+    return 0;
 }

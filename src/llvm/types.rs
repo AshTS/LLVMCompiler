@@ -20,12 +20,12 @@ pub enum NonPtrType
 pub struct DataType
 {
     pub raw_type: NonPtrType,
-    pub num_ptr: usize
+    pub num_ptr: isize,
 }
 
 impl DataType
 {
-    pub fn new(raw: NonPtrType, ptrs: usize) -> Self
+    pub fn new(raw: NonPtrType, ptrs: isize) -> Self
     {
         Self
         {
@@ -39,6 +39,11 @@ impl fmt::Display for DataType
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
+        for _ in 0..(-self.num_ptr)
+        {
+            write!(f, "&")?;
+        }
+        
         write!(f, "{}", match self.raw_type
         {
             NonPtrType::Bool => "i1",

@@ -42,7 +42,7 @@ pub fn type_from_parse_tree(node: ParseTreeNode) -> Result<DataType, Error>
                 }
             };
 
-            Ok(DataType::new(non_ptr, children.len() - 1))
+            Ok(DataType::new(non_ptr, (children.len() - 1) as isize))
         },
         default =>
         {

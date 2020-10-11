@@ -1,4 +1,4 @@
-use super::{Function, Value, Literal, Symbol, Instruction, OpCode, attempt_mutate_type, has_unknown_type, get_value_type};
+use super::{Function, Value, Literal, Symbol, Instruction, OpCode, attempt_mutate_type, has_unknown_type, get_value_type, correct_type_references};
 
 use crate::cli::Error;
 
@@ -247,7 +247,7 @@ impl Expression
                     {
                         let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
 
-                        Ok(Expression::new(ExpressionType::UnaryOperation(OpCode::Deref, -1), None, vec![
+                        Ok(Expression::new(ExpressionType::UnaryOperation(OpCode::Deref, -2), None, vec![
                             child0
                         ]))
                     },
@@ -310,7 +310,7 @@ impl Expression
 
                 let datatype = get_value_type(&val0).unwrap();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype.clone())));
                 self.value = Some(value.clone());
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Sub, vec![
@@ -326,7 +326,7 @@ impl Expression
 
                 let datatype = get_value_type(&val0).unwrap();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype.clone())));
                 self.value = Some(value.clone());
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Xor, vec![
@@ -370,7 +370,7 @@ impl Expression
                 val0 = attempt_mutate_type(val0, datatype.clone());
                 val1 = attempt_mutate_type(val1, datatype.clone());
                 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype)));
                 self.value = Some(value.clone());
 
                 func.borrow_mut().add_instruction(Instruction::new(opcode, vec![
@@ -414,7 +414,7 @@ impl Expression
                 val0 = attempt_mutate_type(val0, datatype.clone());
                 val1 = attempt_mutate_type(val1, datatype.clone());
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype)));
                 self.value = Some(value.clone());
 
                 match operation
@@ -468,7 +468,7 @@ impl Expression
 
                 let val0 = self.children[0].value(func)?;
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), get_value_type(&val0).unwrap()));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(get_value_type(&val0).unwrap())));
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
                     value.clone(),
@@ -495,7 +495,7 @@ impl Expression
                 self.children[0].render(func)?;
                 let val0 = self.children[0].value(func)?;
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(datatype.clone())));
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Cast, vec![
                     value.clone(),
@@ -594,7 +594,7 @@ impl Expression
                 let val0 = self.children[0].value(func)?;
 
                 let mut datatype = get_value_type(&val0).unwrap();
-                datatype.num_ptr = (datatype.num_ptr as isize + delta) as usize;
+                datatype.num_ptr = datatype.num_ptr as isize + delta;
 
                 let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
 

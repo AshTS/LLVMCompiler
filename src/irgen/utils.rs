@@ -11,7 +11,7 @@ pub fn attempt_mutate_type(value: Value, new_type: DataType) -> Value
 
             if lit.datatype.raw_type == NonPtrType::Unknown
             {
-                lit.datatype = new_type;
+                lit.datatype = correct_type_references(new_type);
             }
 
             Value::Literal(lit)
@@ -37,4 +37,13 @@ pub fn has_unknown_type(value: &Value) -> bool
         Some(v) => v.raw_type == NonPtrType::Unknown,
         None => true
     }
+}
+
+pub fn correct_type_references(datatype: DataType) -> DataType
+{
+    let mut result = datatype.clone();
+
+    result.num_ptr = 0.max(result.num_ptr);
+
+    result
 }

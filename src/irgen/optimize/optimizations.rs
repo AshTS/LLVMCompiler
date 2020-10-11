@@ -124,6 +124,12 @@ pub fn optimization_clean_registers(f: Function) -> Function
 
     for symbol in symbols
     {
+        // Skip the register if the datatype is a reference (the instruction will have side effects)
+        if symbol.datatype.num_ptr < 0
+        {
+            continue;
+        }
+
         let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
         
         // Remove Unused Symbols
