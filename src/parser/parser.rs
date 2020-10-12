@@ -135,6 +135,212 @@ impl Stream
     }
 }
 
+/// Convert a parse tree to be on the left hand side
+pub fn convert_to_left(node: ParseTreeNode)  -> Result<ParseTreeNode, Error>
+{
+    let mut tree = node.clone();
+    
+    tree = match &tree
+    {
+        ParseTreeNode::Expression(expr_type, children) =>
+        {
+            if expr_type == &ExpressionType::Dereference
+            {
+                ParseTreeNode::Expression(ExpressionType::DereferenceLeft, children.clone())
+            }
+            else
+            {
+                tree
+            }
+        },
+        _ => tree
+    };
+
+    tree = match tree
+    {
+        ParseTreeNode::Library(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Library(new_children)
+        },
+        ParseTreeNode::Function(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Function(new_children)
+        },
+        ParseTreeNode::Arguments(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Arguments(new_children)
+        },
+        ParseTreeNode::Argument(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Argument(new_children)
+        },
+        ParseTreeNode::Type(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Type(new_children)
+        },
+        ParseTreeNode::Statement(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Statement(new_children)
+        },
+        ParseTreeNode::Statements(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Statements(new_children)
+        },
+        ParseTreeNode::Assignments(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Assignments(new_children)
+        },
+        ParseTreeNode::Assignment(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Assignment(new_children)
+        },
+        ParseTreeNode::Expression(t, c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Expression(t, new_children)
+        },
+        ParseTreeNode::AssignmentStatement(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::AssignmentStatement(new_children)
+        },
+
+        ParseTreeNode::IfStatement(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::IfStatement(new_children)
+        },
+        ParseTreeNode::ReturnStatement(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::ReturnStatement(new_children)
+        },
+        ParseTreeNode::WhileLoop(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::WhileLoop(new_children)
+        },
+        ParseTreeNode::DoWhileLoop(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::DoWhileLoop(new_children)
+        },
+        ParseTreeNode::Loop(c) =>
+        {
+            let mut new_children = vec![];
+
+            for child in c
+            {
+                new_children.push(convert_to_left(child)?);
+            }
+
+            ParseTreeNode::Loop(new_children)
+        },
+        _ => tree
+    };
+
+    Ok(tree)
+}
+
 /// Get the parse tree for a translation unit
 pub fn parse(tokens: Vec<Token>) -> Result<ParseTreeNode, Error>
 {
@@ -395,7 +601,7 @@ fn recursive_expression(orig_stream: &Stream, depth: usize) -> Result<(Stream, P
         // Binary Operators
         4..=13 | 15 | 17 =>
         {
-            let prev = stream.accept_stream(recursive_expression(&stream, depth - 1))?;
+            let mut prev = stream.accept_stream(recursive_expression(&stream, depth - 1))?;
             
             // Extract the operator
             let op = 
@@ -546,6 +752,12 @@ fn recursive_expression(orig_stream: &Stream, depth: usize) -> Result<(Stream, P
             else
             {
                 stream.consume();
+
+                // We know the expression is an assignment
+                if depth == 15
+                {
+                    prev = convert_to_left(prev)?;
+                }
 
                 let post = stream.accept_stream(recursive_expression(&stream, depth))?;
                 Ok((stream, ParseTreeNode::Expression(op.unwrap(), vec![prev, post])))

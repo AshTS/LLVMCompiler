@@ -1,7 +1,7 @@
 use crate::tokenizer::Token;
 
 /// Expression Types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExpressionType
 {
     ArrayAccess,
@@ -15,6 +15,7 @@ pub enum ExpressionType
     LogicalNot,
     BitwiseNot,
     Dereference,
+    DereferenceLeft,
     Reference,
     Multiply,
     Divide,

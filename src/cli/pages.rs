@@ -8,6 +8,7 @@ pub fn display_help()
     println!(" -o            [FILE]     Redirect the output to the given file");
     println!(" -O            [VAL]      Set the optimization level (defaults to 2)");
     println!("     --stdout             Display the output on stdout");
+    println!(" -T  --tree               Display the parse tree");
     println!("\nAllowable Codegen Modes:");
     println!("   ir");
     println!("   avrasm");

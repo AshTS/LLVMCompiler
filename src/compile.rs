@@ -6,7 +6,7 @@ use super::tokenizer::tokenize;
 use super::irgen;
 use super::codegen::{CodeGenerator, CodegenMode};
 
-use super::parser::ParseTreeNode;
+use super::parser::{ParseTreeNode, display_parse_tree};
 
 pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 {
@@ -14,8 +14,10 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
     let data = input.data;
     let filename = input.filename;
 
+    // Tokenization
     let tokens = tokenize(data, filename);
 
+    // Parsing
     let node = recorder.wrap_return(super::parser::parse(tokens))?;
 
     if node.is_none()
@@ -23,6 +25,14 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         Err(Error::fatal_error("No Parse Tree Returned"))?
     }
 
+    if options.has_long_flag("tree") || options.has_short_flag("T")
+    {
+        println!("Parse Tree:");
+
+        display_parse_tree(node.clone().unwrap(), String::new(), false);
+    }
+
+    // Determine Optimization Level
     let mut optimization_level = 0;
 
     if let Some(level) = options.map.get("-O")
@@ -37,6 +47,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         }
     }
 
+    // Convert parse tree to IR
     let mut functions = vec![];
 
     match node.unwrap()
@@ -54,6 +65,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         _ => {}
     }
 
+    // Code Generation
     let mut codegen_mode = CodegenMode::IntermediateRepresentation;
 
     if let Some(name) = options.map.get("-g")
@@ -63,15 +75,13 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 
     let output = CodeGenerator::new(codegen_mode, functions).render()?;
 
-    //let target = llvm::TargetTriple::new(llvm::Architecture::X86_64, llvm::Vendor::Unknown, llvm::OperatingSystem::Linux);
-    //let mut module = llvm::Module::new(target);
-
-    //module.load_from_parse_tree(node.clone().unwrap())?;
-
+    // Display Output to stdout
     if options.has_long_flag("stdout")
     {
         println!("Output:\n{}", output);
     }
+
+    // Output to a file
     else
     {
         let mut output_filename = "out.ll";

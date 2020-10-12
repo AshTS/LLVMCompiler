@@ -43,7 +43,7 @@ pub fn correct_type_references(datatype: DataType) -> DataType
 {
     let mut result = datatype.clone();
 
-    result.num_ptr = 0.max(result.num_ptr);
+    result.is_ref = false;
 
     result
 }

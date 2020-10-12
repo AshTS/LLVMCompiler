@@ -18,13 +18,13 @@ pub enum ExpressionType
 {
     LogicalAnd,
     LogicalOr,
-
     FunctionCall,
     LogicalNot,
     ArrayAccess,
     BitwiseNot,
     Ternary,
     UnaryOperation(OpCode, isize),
+    DereferenceLeft,
     Cast(DataType),
     Comma,
     UnaryMinus,
@@ -248,6 +248,14 @@ impl Expression
                         let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
 
                         Ok(Expression::new(ExpressionType::UnaryOperation(OpCode::Deref, -1), None, vec![
+                            child0
+                        ]))
+                    },
+                    ExpressionTypeP::DereferenceLeft =>
+                    {
+                        let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
+
+                        Ok(Expression::new(ExpressionType::DereferenceLeft, None, vec![
                             child0
                         ]))
                     },
@@ -604,6 +612,25 @@ impl Expression
                 let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
 
                 func.borrow_mut().add_instruction(Instruction::new(opcode, vec![
+                    value.clone(),
+                    val0.clone()
+                    ]));
+
+                self.value = Some(value);
+            },
+            ExpressionType::DereferenceLeft =>
+            {
+                self.children[0].render(func)?;
+                let mut val0 = self.children[0].value(func)?;
+
+                let mut datatype = get_value_type(&val0).unwrap().clone();
+                datatype.is_ref = true;
+
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
+
+                val0 = attempt_mutate_type(val0, datatype);
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Cast, vec![
                     value.clone(),
                     val0.clone()
                     ]));
