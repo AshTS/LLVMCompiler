@@ -210,10 +210,6 @@ impl FunctionGenerationContext
                         result += &generate_command(&format!("rjmp {}", get_label(&self.function, label)?))?;
                     }
                 },
-                OpCode::Deref =>
-                {
-                    result += self.move_instruction(&inst.arguments[0], &inst.arguments[1], true)?.as_str();
-                },
                 OpCode::Mov =>
                 {
                     result += self.move_instruction(&inst.arguments[0], &inst.arguments[1], false)?.as_str();

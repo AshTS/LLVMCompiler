@@ -9,7 +9,7 @@ use crate::parser::ParseTreeNode;
 use crate::llvm::{expected_got_error};
 use crate::llvm::{identifier_from_parse_tree, type_from_parse_tree, arguments_from_parse_tree};
 
-use super::Statement;
+use super::{Statement, get_value_type};
 
 use crate::cli::Error;
 
@@ -480,7 +480,15 @@ impl Function
                     {
                         if inst.arguments[0] == value
                         {
-                            writes.push(*index);
+                            if !get_value_type(&value).unwrap().is_ref || inst.opcode == OpCode::Cast
+                            {
+                                writes.push(*index);
+                            }
+                            else
+                            {
+                                reads.push(*index);
+                            }
+                            
                         }
                         
                         if inst.arguments.len() > 1
