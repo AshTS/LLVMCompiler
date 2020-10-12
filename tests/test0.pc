@@ -1,11 +1,9 @@
 void main()
 {
-    // Sets Pin 9 to High
-
-    // Set DDRB to 0b00000010
+    // Set the DDRB to 2
     *(36 as u8*) = 2;
 
-    // Set PORTB to 0b00000010
+    // Set PORTB to 2
     *(37 as u8*) = 2;
 
     loop;

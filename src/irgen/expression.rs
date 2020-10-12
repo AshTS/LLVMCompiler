@@ -78,7 +78,7 @@ impl Expression
             {
                 Ok(Expression::new_with_token(ExpressionType::IntegerLiteral, 
                     Some(Value::Literal(Literal::new(i128::from_str_radix(token.data.as_str(), 10).unwrap(),
-                        DataType::new(NonPtrType::Unknown, 0)))), vec![], token))
+                        DataType::new(NonPtrType::Unknown, 0, false)))), vec![], token))
             },
             ParseTreeNode::Identifier(token) =>
             {
@@ -247,7 +247,7 @@ impl Expression
                     {
                         let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
 
-                        Ok(Expression::new(ExpressionType::UnaryOperation(OpCode::Deref, -2), None, vec![
+                        Ok(Expression::new(ExpressionType::UnaryOperation(OpCode::Deref, -1), None, vec![
                             child0
                         ]))
                     },
@@ -359,12 +359,12 @@ impl Expression
                     }
                     else
                     {
-                        DataType::new(NonPtrType::Unknown, 0)
+                        DataType::new(NonPtrType::Unknown, 0, false)
                     }
                 }
                 else
                 {
-                    DataType::new(NonPtrType::Unknown, 0)
+                    DataType::new(NonPtrType::Unknown, 0, false)
                 };
 
                 val0 = attempt_mutate_type(val0, datatype.clone());
@@ -403,12 +403,12 @@ impl Expression
                     }
                     else
                     {
-                        DataType::new(NonPtrType::Unknown, 0)
+                        DataType::new(NonPtrType::Unknown, 0, false)
                     }
                 }
                 else
                 {
-                    DataType::new(NonPtrType::Unknown, 0)
+                    DataType::new(NonPtrType::Unknown, 0, false)
                 };
 
                 val0 = attempt_mutate_type(val0, datatype.clone());
@@ -514,7 +514,7 @@ impl Expression
                 let clause = func.borrow_mut().get_label();
                 let exit = func.borrow_mut().get_label();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0, false)));
                 self.value = Some(value.clone());
 
                 self.children[0].render(func)?;
@@ -522,7 +522,7 @@ impl Expression
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     self.children[0].value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(body.clone()),
                     Value::Label(clause.clone())]));
 
@@ -558,7 +558,7 @@ impl Expression
                 let clause = func.borrow_mut().get_label();
                 let exit = func.borrow_mut().get_label();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0, false)));
                 self.value = Some(value.clone());
 
                 self.children[0].render(func)?;
@@ -566,7 +566,7 @@ impl Expression
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     self.children[0].value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(body.clone()),
                     Value::Label(clause.clone())]));
 
@@ -575,7 +575,7 @@ impl Expression
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
                     value.clone(),
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     ]));
 
                 // Add a jump statement to skip the clause
@@ -586,7 +586,7 @@ impl Expression
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
                     value,
-                    Value::Literal(Literal::new(1, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(1, DataType::new(NonPtrType::Unknown, 0, false))),
                     ]));
 
                 // Place the exit label
@@ -599,7 +599,7 @@ impl Expression
                 let val0 = self.children[0].value(func)?;
 
                 let mut datatype = get_value_type(&val0).unwrap();
-                datatype.num_ptr = datatype.num_ptr as isize + delta;
+                datatype.num_ptr = (datatype.num_ptr as isize + delta) as usize;
 
                 let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
 
@@ -612,7 +612,7 @@ impl Expression
             },
             ExpressionType::FunctionCall =>
             {
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0, false)));
 
                 let l = self.children.len();
                 for arg in &mut self.children[0..l]
@@ -638,7 +638,7 @@ impl Expression
                 let clause = func.borrow_mut().get_label();
                 let exit = func.borrow_mut().get_label();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0, false)));
                 self.value = Some(value.clone());
 
                 self.children[0].render(func)?;
@@ -646,7 +646,7 @@ impl Expression
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     self.children[0].value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(body.clone()),
                     Value::Label(clause.clone())]));
 
@@ -668,7 +668,7 @@ impl Expression
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
                     value,
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     ]));
 
                 // Place the exit label
@@ -680,7 +680,7 @@ impl Expression
                 let clause = func.borrow_mut().get_label();
                 let exit = func.borrow_mut().get_label();
 
-                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0)));
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), DataType::new(NonPtrType::Unknown, 0, false)));
                 self.value = Some(value.clone());
 
                 self.children[0].render(func)?;
@@ -688,7 +688,7 @@ impl Expression
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     self.children[0].value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(body.clone()),
                     Value::Label(clause.clone())]));
 
@@ -697,7 +697,7 @@ impl Expression
 
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Mov, vec![
                     value.clone(),
-                    Value::Literal(Literal::new(1, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(1, DataType::new(NonPtrType::Unknown, 0, false))),
                     ]));
 
                 // Add a jump statement to skip the clause

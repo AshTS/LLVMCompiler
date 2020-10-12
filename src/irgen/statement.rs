@@ -320,7 +320,7 @@ impl Statement
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     e.value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(body.clone()),
                     Value::Label(clause.clone())]));
                 
@@ -358,7 +358,7 @@ impl Statement
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     e.value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(allow.clone()),
                     Value::Label(end.clone())]));
                 func.borrow_mut().place_label_here(allow.clone());
@@ -392,7 +392,7 @@ impl Statement
                 // Perform the comparison
                 func.borrow_mut().add_instruction(Instruction::new(OpCode::Bne, vec![
                     e.value(func)?, 
-                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0))),
+                    Value::Literal(Literal::new(0, DataType::new(NonPtrType::Unknown, 0, false))),
                     Value::Label(start.clone()),
                     Value::Label(end.clone())]));
             

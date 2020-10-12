@@ -134,7 +134,7 @@ pub fn optimization_clean_registers(f: Function) -> Function
     for symbol in symbols
     {
         // Skip the register if the datatype is a reference (the instruction will have side effects)
-        if symbol.datatype.num_ptr < 0
+        if symbol.datatype.is_ref
         {
             continue;
         }

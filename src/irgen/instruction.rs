@@ -194,7 +194,7 @@ impl Function
 
             symbol_table: HashMap::new(),
 
-            return_type: DataType::new(NonPtrType::Void, 0),
+            return_type: DataType::new(NonPtrType::Void, 0, false),
             name: String::from("[UNKNOWN]"),
             arguments: vec![],
 
@@ -205,7 +205,7 @@ impl Function
             continue_stack: vec![],
             break_stack: vec![],
 
-            return_value: Value::Symbol(Symbol::new(String::from("R0"), DataType::new(NonPtrType::Void, 0)))
+            return_value: Value::Symbol(Symbol::new(String::from("R0"), DataType::new(NonPtrType::Void, 0, false)))
         }
     }
 

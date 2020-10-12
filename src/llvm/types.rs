@@ -20,17 +20,19 @@ pub enum NonPtrType
 pub struct DataType
 {
     pub raw_type: NonPtrType,
-    pub num_ptr: isize,
+    pub num_ptr: usize,
+    pub is_ref: bool
 }
 
 impl DataType
 {
-    pub fn new(raw: NonPtrType, ptrs: isize) -> Self
+    pub fn new(raw: NonPtrType, ptrs: usize, is_ref: bool) -> Self
     {
         Self
         {
             raw_type: raw,
-            num_ptr: ptrs
+            num_ptr: ptrs,
+            is_ref: is_ref
         }
     }
 }
@@ -39,7 +41,7 @@ impl fmt::Display for DataType
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        for _ in 0..(-self.num_ptr)
+        if self.is_ref
         {
             write!(f, "&")?;
         }

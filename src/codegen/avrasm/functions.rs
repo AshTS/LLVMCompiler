@@ -39,7 +39,7 @@ impl FunctionGenerationContext
         Self
         {
             function,
-            free_registers: vec![25, 23, 22, 21, 20, 19, 18, 17, 15, 14, 13, 12, 11, 10, 9, 8],
+            free_registers: vec![25, 23, 22, 21, 20, 19, 18, 17],
             symbol_map: HashMap::new(),
             temp_reg: 16
         }
@@ -129,7 +129,7 @@ impl FunctionGenerationContext
             {
                 if let Value::Symbol(symb) = target
                 {
-                    if symb.datatype.num_ptr >= 0 || force_move
+                    if !symb.datatype.is_ref || force_move
                     {
                         let mut result = generate_command(&format!("ldi r{}, {}", self.get_register(symb)?, lit.value & 0xFF))?;
 
