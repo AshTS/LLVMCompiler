@@ -625,6 +625,7 @@ impl Expression
 
                 let mut datatype = get_value_type(&val0).unwrap().clone();
                 datatype.is_ref = true;
+                datatype.num_ptr -= 1;
 
                 let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), datatype.clone()));
 

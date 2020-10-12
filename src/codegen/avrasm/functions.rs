@@ -146,8 +146,8 @@ impl FunctionGenerationContext
 
                         let reg = self.get_register(symb)?;
                         
-                        result += &generate_command(&format!("mov r26, r{}", reg))?;
-                        result += &generate_command(&format!("mov r27, r{}", reg + 1))?;
+                        result += &generate_command(&format!("mov r26, {}", reg))?;
+                        result += &generate_command(&format!("mov r27, {}", reg + 1))?;
                         result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
 
                         if get_size_datatype(lit.datatype) == 1
@@ -163,14 +163,130 @@ impl FunctionGenerationContext
                         Ok(result)
                     }
                 }
+                else if let Value::Literal(target_lit) = target
+                {
+                    if !target_lit.datatype.is_ref || force_move
+                    {
+                        unimplemented!()
+                    }
+                    else
+                    {
+                        let mut result = String::new();
+
+                        if target_lit.value < 0x60 && target_lit.value >= 0x20
+                        {
+                            result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
+                            result += &generate_command(&format!("out {}, r16", target_lit.value - 0x20))?;
+
+                            if get_size_datatype(lit.datatype) == 2
+                            {
+                                return Err(Error::error("Cannot assign 16 bit value to an 8 bit register"))
+                            }
+                        }
+                        else
+                        {
+                            result += &generate_command(&format!("ldi r26, {}", target_lit.value & 0xFF))?;
+                            result += &generate_command(&format!("ldi r27, {}", (target_lit.value & 0xFF00) >> 8))?;
+                            result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
+
+                            if get_size_datatype(lit.datatype) == 1
+                            {
+                                result += &generate_command("st X, r16")?;
+                            }
+                            else if get_size_datatype(lit.datatype) == 2
+                            {
+                                result += &generate_command(&format!("ldi r16, {}", (lit.value & 0xFF00) >> 8))?;
+                                result += &generate_command("st +X, r16")?;
+                            }
+                        }
+
+                        Ok(result)
+                    }
+                }
                 else
                 {
                     unimplemented!()
                 }
             },
-            Value::Symbol(_symb) =>
+            Value::Symbol(src_symb) =>
             {
-                unimplemented!()
+                let src_reg = self.get_register(src_symb)?;
+
+                if let Value::Symbol(symb) = target
+                {
+                    if !symb.datatype.is_ref || force_move
+                    {
+                        let mut result = generate_command(&format!("ldi r{}, r{}", self.get_register(symb)?, src_reg))?;
+
+                        if get_size_datatype(src_symb.datatype) == 2
+                        {
+                            result += &generate_command(&format!("ldi r{}, r{}", self.get_register(symb)? + 1, src_reg + 1))?;
+                        }
+
+                        Ok(result)
+                    }
+                    else
+                    {
+                        let mut result = String::new();
+
+                        let reg = self.get_register(symb)?;
+                        
+                        result += &generate_command(&format!("mov r26, {}", reg))?;
+                        result += &generate_command(&format!("mov r27, {}", reg + 1))?;
+
+                        if get_size_datatype(src_symb.datatype) == 1
+                        {
+                            result += &generate_command(&format!("st X, r{}", src_reg))?;
+                        }
+                        else if get_size_datatype(src_symb.datatype) == 2
+                        {
+                            result += &generate_command(&format!("st +X, r{}", src_reg + 1))?;
+                        }
+
+                        Ok(result)
+                    }
+                }
+                else if let Value::Literal(target_lit) = target
+                {
+                    if !target_lit.datatype.is_ref || force_move
+                    {
+                        unimplemented!()
+                    }
+                    else
+                    {
+                        let mut result = String::new();
+
+                        if target_lit.value < 0x60 && target_lit.value >= 0x20
+                        {
+                            result += &generate_command(&format!("out {}, r{}", target_lit.value - 0x20, src_reg))?;
+
+                            if get_size_datatype(src_symb.datatype) == 2
+                            {
+                                return Err(Error::error("Cannot assign 16 bit value to an 8 bit register"))
+                            }
+                        }
+                        else
+                        {
+                            result += &generate_command(&format!("ldi r26, {}", target_lit.value & 0xFF))?;
+                            result += &generate_command(&format!("ldi r27, {}", (target_lit.value & 0xFF00) >> 8))?;
+
+                            if get_size_datatype(src_symb.datatype) == 1
+                            {
+                                result += &generate_command(&format!("st X, r{}", src_reg))?;
+                            }
+                            else if get_size_datatype(src_symb.datatype) == 2
+                            {
+                                result += &generate_command(&format!("st +X, r{}", src_reg + 1))?;
+                            }
+                        }
+
+                        Ok(result)
+                    }
+                }
+                else
+                {
+                    unimplemented!()
+                }
             },
         }
     }
