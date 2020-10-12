@@ -12,7 +12,8 @@ pub struct FunctionGenerationContext
     free_registers: Vec<usize>,
     function: Function,
     symbol_map: HashMap<String, usize>,
-    temp_reg: usize
+    temp_reg: usize,
+    last_temp_assignment: String
 }
 
 pub fn get_size_datatype(t: DataType) -> usize
@@ -41,7 +42,8 @@ impl FunctionGenerationContext
             function,
             free_registers: vec![25, 23, 22, 21, 20, 19, 18, 17],
             symbol_map: HashMap::new(),
-            temp_reg: 16
+            temp_reg: 16,
+            last_temp_assignment: String::new()
         }
     }
 
@@ -148,7 +150,13 @@ impl FunctionGenerationContext
                         
                         result += &generate_command(&format!("mov r26, {}", reg))?;
                         result += &generate_command(&format!("mov r27, {}", reg + 1))?;
-                        result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
+
+                        let new_temp = format!("{}", lit.value & 0xFF);
+                        if self.last_temp_assignment != new_temp
+                        {
+                            self.last_temp_assignment = format!("{}", lit.value & 0xFF);
+                            result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                        }
 
                         if get_size_datatype(lit.datatype) == 1
                         {
@@ -156,7 +164,13 @@ impl FunctionGenerationContext
                         }
                         else if get_size_datatype(lit.datatype) == 2
                         {
-                            result += &generate_command(&format!("ldi r16, {}", (lit.value & 0xFF00) >> 8))?;
+                            let new_temp = format!("{}", (lit.value & 0xFF00) >> 8);
+                            if self.last_temp_assignment != new_temp
+                            {
+                                self.last_temp_assignment = new_temp;
+                                result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            }
+
                             result += &generate_command("st +X, r16")?;
                         }
 
@@ -175,7 +189,13 @@ impl FunctionGenerationContext
 
                         if target_lit.value < 0x60 && target_lit.value >= 0x20
                         {
-                            result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
+                            let new_temp = format!("{}", lit.value & 0xFF);
+                            if self.last_temp_assignment != new_temp
+                            {
+                                self.last_temp_assignment = format!("{}", lit.value & 0xFF);
+                                result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            }
+
                             result += &generate_command(&format!("out {}, r16", target_lit.value - 0x20))?;
 
                             if get_size_datatype(lit.datatype) == 2
@@ -187,7 +207,13 @@ impl FunctionGenerationContext
                         {
                             result += &generate_command(&format!("ldi r26, {}", target_lit.value & 0xFF))?;
                             result += &generate_command(&format!("ldi r27, {}", (target_lit.value & 0xFF00) >> 8))?;
-                            result += &generate_command(&format!("ldi r16, {}", lit.value & 0xFF))?;
+                            
+                            let new_temp = format!("{}", lit.value & 0xFF);
+                            if self.last_temp_assignment != new_temp
+                            {
+                                self.last_temp_assignment = format!("{}", lit.value & 0xFF);
+                                result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            }
 
                             if get_size_datatype(lit.datatype) == 1
                             {
@@ -195,6 +221,13 @@ impl FunctionGenerationContext
                             }
                             else if get_size_datatype(lit.datatype) == 2
                             {
+                                let new_temp = format!("{}", (lit.value & 0xFF00) >> 8);
+                                if self.last_temp_assignment != new_temp
+                                {
+                                    self.last_temp_assignment = format!("{}", (lit.value & 0xFF00) >> 8);
+                                    result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                                }
+
                                 result += &generate_command(&format!("ldi r16, {}", (lit.value & 0xFF00) >> 8))?;
                                 result += &generate_command("st +X, r16")?;
                             }
@@ -316,7 +349,7 @@ impl FunctionGenerationContext
             
             match inst.opcode
             {
-                OpCode::Nop => {result += &generate_command("nop")?;},
+                OpCode::Nop => {},
                 OpCode::Jmp =>
                 {
                     // Because the label is within the function, we will assume it is just a relative jump

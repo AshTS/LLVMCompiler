@@ -28,6 +28,8 @@ pub fn optimize_function(f: Function, level: usize) -> Function
         func = optimization_remove_nop(func);
         func = optimization_dead_code(func);
         func = optimization_remove_nop(func);
+        func = optimization_remove_unused_labels(func);
+        func = optimization_remove_nop(func);
 
         if func.instructions.len() == last.instructions.len()
         {
@@ -107,6 +109,41 @@ pub fn optimization_jump_chaining(f: Function) -> Function
                 }
             }
         }
+    }
+
+    func
+}
+
+pub fn optimization_remove_unused_labels(f: Function) -> Function
+{
+    let mut func = f.clone();
+    let mut labels = vec![];
+
+    for (_, inst) in (&func.instructions).clone()
+    {
+        for v in inst.arguments
+        {
+            if let Value::Label(label) = v
+            {
+                labels.push(label);
+            }
+        }
+    }
+
+    let mut labels_to_remove = vec![];
+    
+    for l in func.labels_reverse.keys()
+    {
+
+        if !labels.contains(l)
+        {
+            labels_to_remove.push(l.clone());
+        }
+    }
+
+    for l in labels_to_remove
+    {
+        func.remove_label(l.clone());
     }
 
     func

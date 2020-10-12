@@ -547,6 +547,41 @@ impl Function
 
         result
     }
+
+    pub fn remove_label(&mut self, label: String)
+    {
+        if let Some(index) = self.labels_reverse.get(&label)
+        {
+            if let Some(labels) = self.labels.get(&index)
+            {
+                if labels.contains(&label)
+                {
+                    let mut next_vec = vec![];
+                    if let Some(r) = self.labels.get(&index)
+                    {
+                        for value in r.iter()
+                        {
+                            if *value != label
+                            {
+                                next_vec.push(value.clone());
+                            }
+                        }
+                    }
+
+                    if next_vec.len() > 0
+                    {
+                        self.labels.insert(*index, next_vec);
+                    }
+                    else
+                    {
+                        self.labels.remove(index);
+                    }
+                }
+            }
+        }
+
+        self.labels_reverse.remove(&label);
+    }
 }
 
 impl fmt::Display for Function
