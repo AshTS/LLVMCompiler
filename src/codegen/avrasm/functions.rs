@@ -241,11 +241,11 @@ impl FunctionGenerationContext
                 {
                     if !symb.datatype.is_ref || force_move
                     {
-                        let mut result = generate_command(&format!("ldi r{}, r{}", self.get_register(symb)?, src_reg))?;
+                        let mut result = generate_command(&format!("mov r{}, r{}", self.get_register(symb)?, src_reg))?;
 
                         if get_size_datatype(src_symb.datatype) == 2
                         {
-                            result += &generate_command(&format!("ldi r{}, r{}", self.get_register(symb)? + 1, src_reg + 1))?;
+                            result += &generate_command(&format!("mov r{}, r{}", self.get_register(symb)? + 1, src_reg + 1))?;
                         }
 
                         Ok(result)
@@ -399,7 +399,7 @@ impl FunctionGenerationContext
         match v0
         {
             Value::Label(_) => {Err(Error::fatal_error("Cannot use label as a value"))},
-            Value::Literal(lit0) =>
+            Value::Literal(_lit0) =>
             {
                 unimplemented!()
             },
@@ -455,6 +455,54 @@ impl FunctionGenerationContext
         }
     }
 
+    pub fn add_branch(&mut self, inst: &str, v0: &Value, v1: &Value, l0: &Value, l1: &Value) -> Result<String, Error>
+    {
+        let label0 = if let Value::Label(s) = l0 {s} else {return Err(Error::error("Expected a label"));};
+        let label1 = if let Value::Label(s) = l1 {s} else {return Err(Error::error("Expected a label"));};
+
+        if let Value::Symbol(symb0) = v0
+        {
+            let reg0 = self.get_register(&symb0)?;
+
+            if get_size_datatype(symb0.datatype) == 1
+            {
+                let mut result = String::new();
+
+                if let Value::Symbol(symb1) = v1
+                {
+                    let reg1 = self.get_register(&symb1)?;
+
+                    result += &generate_command(&format!("cp r{}, r{}", reg0, reg1))?;
+                }
+                else if let Value::Literal(lit1) = v1
+                {
+                    result += &generate_command(&format!("cpi r{}, {}", reg0, lit1.value))?;
+                }
+                else
+                {
+                    unimplemented!()
+                }
+
+                result += &generate_command(&format!("{} {}", inst, get_label(&self.function, label0)?))?;
+                result += &generate_command(&format!("rjmp {}", get_label(&self.function, label1)?))?;
+
+                Ok(result)
+            }
+            else if get_size_datatype(symb0.datatype) == 2
+            {
+                unimplemented!()
+            }
+            else
+            {
+                unimplemented!()
+            }
+        }
+        else
+        {
+            unimplemented!()
+        }
+    }
+
     pub fn render_function(&mut self) -> Result<String, Error>
     {
         let mut result = String::new();
@@ -501,6 +549,30 @@ impl FunctionGenerationContext
                 OpCode::Add =>
                 {
                     result += self.add_instruction(&inst.arguments[0], &inst.arguments[1], &inst.arguments[2])?.as_str();
+                },
+                OpCode::Beq =>
+                {
+                    result += self.add_branch("breq", &inst.arguments[0], &inst.arguments[1], &inst.arguments[2], &inst.arguments[3])?.as_str();
+                },
+                OpCode::Bne =>
+                {
+                    result += self.add_branch("brne", &inst.arguments[0], &inst.arguments[1], &inst.arguments[2], &inst.arguments[3])?.as_str();
+                },
+                OpCode::Blt =>
+                {
+                    result += self.add_branch("brlo", &inst.arguments[0], &inst.arguments[1], &inst.arguments[2], &inst.arguments[3])?.as_str();
+                },
+                OpCode::Ble =>
+                {
+                    result += self.add_branch("brlo", &inst.arguments[1], &inst.arguments[0], &inst.arguments[2], &inst.arguments[3])?.as_str();
+                },
+                OpCode::Bgt =>
+                {
+                    result += self.add_branch("brlo", &inst.arguments[1], &inst.arguments[0], &inst.arguments[3], &inst.arguments[2])?.as_str();
+                },
+                OpCode::Bge =>
+                {
+                    result += self.add_branch("brlo", &inst.arguments[0], &inst.arguments[1], &inst.arguments[3], &inst.arguments[2])?.as_str();
                 },
                 _ => {panic!("Not yet implemented conversion for\n{}", inst)
                 }

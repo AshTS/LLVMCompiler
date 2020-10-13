@@ -96,8 +96,10 @@ pub fn optimization_jump_chaining(f: Function) -> Function
     {
         if inst.opcode == OpCode::Jmp
         {
-            if let Some(v) = func.get_jump_value(index)
+            if let Some(vs) = func.get_jump_values(index)
             {
+                let v = vs[0];
+
                 if v == index + 1
                 {
                     func.change_to_nop(index);
@@ -109,6 +111,27 @@ pub fn optimization_jump_chaining(f: Function) -> Function
                         func.instructions.get_mut(&index).unwrap().arguments[0] = next.arguments[0].clone();
                     }
                 }
+            }
+        }
+        else if let Some(vs) = func.get_jump_values(index)
+        {
+            if vs.len() == 2
+            {
+                if let Some(next) = func.instructions.get(&vs[0])
+                {
+                    if next.opcode == OpCode::Jmp
+                    {
+                        func.instructions.get_mut(&index).unwrap().arguments[2] = next.arguments[0].clone();
+                    }
+                } 
+
+                if let Some(next) = func.instructions.get(&vs[1])
+                {
+                    if next.opcode == OpCode::Jmp
+                    {
+                        func.instructions.get_mut(&index).unwrap().arguments[3] = next.arguments[0].clone();
+                    }
+                } 
             }
         }
     }

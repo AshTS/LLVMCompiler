@@ -259,9 +259,10 @@ impl Function
         }
     }
 
-    pub fn get_jump_value(&self, index: usize) -> Option<usize>
+    pub fn get_jump_values(&self, index: usize) -> Option<Vec<usize>>
     {
         let inst = self.instructions.get(&index);
+        let mut result = vec![];
 
         if inst.is_some()
         {
@@ -275,7 +276,7 @@ impl Function
                         {
                             let v = *self.labels_reverse.get(s).unwrap();
 
-                            return Some(v);
+                            result.push(v);
                         },
                         _ => {}
                     }
@@ -283,7 +284,14 @@ impl Function
             }
         }
 
-        None
+        if result.len() > 0
+        {
+            Some(result)
+        }
+        else
+        {
+            None
+        }
     }
 
     pub fn change_to_nop(&mut self, index: usize)

@@ -12,6 +12,14 @@ void main()
     {
         *PORTB = counter++;
         u8 i = 0;
-        while (i++ < 255);
+        while (i++ < 255)
+        {
+            u8 j = 0;
+            while (j++ < 255)
+            {
+                u8 k = 0;
+                while (k++ < 4);
+            }
+        }
     }
 }
