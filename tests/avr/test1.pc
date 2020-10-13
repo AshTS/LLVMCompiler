@@ -1,0 +1,10 @@
+void main()
+{
+    u8* DDRB = 36;
+    u8* PORTB = 37;
+
+    *DDRB = 7;
+    *PORTB = 5;
+
+    loop;
+}

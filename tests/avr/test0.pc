@@ -1,0 +1,10 @@
+void main()
+{
+    // Set the DDRB to 7
+    *(36 as u8*) = 7;
+
+    // Set PORTB to 5
+    *(37 as u8*) = 5;
+
+    loop;
+}

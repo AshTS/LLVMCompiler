@@ -75,8 +75,6 @@ impl FunctionGenerationContext
                     {
                         let v = self.free_registers[i];
 
-                        println!("{:?}, {}, {}", self.free_registers, i, v);
-
                         let j = self.free_registers.iter().position(|&x| x == self.free_registers[i] + 1).unwrap();
 
                         self.free_registers.remove(i);
@@ -324,6 +322,87 @@ impl FunctionGenerationContext
         }
     }
 
+    pub fn dereference_instruction(&mut self, target: &Value, value: &Value) -> Result<String, Error>
+    {
+        match value
+        {
+            Value::Label(_) => {Err(Error::fatal_error("Cannot use label as a value"))},
+            Value::Literal(lit) =>
+            {
+                if let Value::Symbol(symb) = target
+                {
+                    if lit.value < 0x60 && lit.value >= 0x20
+                    {
+                        let mut result = String::new();
+                        let reg = self.get_register(symb)?;
+
+                        if get_size_datatype(symb.datatype) == 1
+                        {
+                            result += &generate_command(&format!("in r{}, {}", reg, lit.value - 0x20))?;
+                        }
+                        else if get_size_datatype(symb.datatype) == 2
+                        {
+                            unimplemented!();
+                        }
+
+                        Ok(result)
+                    }
+                    else
+                    {
+                        let mut result = String::new();
+                        let reg = self.get_register(symb)?;
+
+                        result += &generate_command(&format!("ldi r26, {}", lit.value & 0xFF))?;
+                        result += &generate_command(&format!("ldi r27, {}", (lit.value & 0xFF00) >> 8))?;
+
+                        if get_size_datatype(symb.datatype) == 1
+                        {
+                            result += &generate_command(&format!("ld r{}, X", reg))?;
+                        }
+                        else if get_size_datatype(symb.datatype) == 2
+                        {
+                            result += &generate_command(&format!("ld r{}, +X", reg))?;
+                        }
+
+                        Ok(result)
+                    }
+                }
+                else
+                {
+                    unimplemented!()
+                }
+            },
+            Value::Symbol(src_symb) =>
+            {
+                if let Value::Symbol(symb) = target
+                {
+                    let mut result = String::new();
+                    let reg = self.get_register(symb)?;
+                    let src_reg = self.get_register(src_symb)?;
+
+                    result += &generate_command(&format!("mov r26, r{}", src_reg))?;
+                    result += &generate_command(&format!("mov r27, r{}", src_reg + 1))?;
+
+
+                    if get_size_datatype(symb.datatype) == 1
+                    {
+                        result += &generate_command(&format!("ld r{}, X", reg))?;
+                    }
+                    else if get_size_datatype(symb.datatype) == 2
+                    {
+                        result += &generate_command(&format!("ld r{}, +X", reg))?;
+                    }
+
+                    Ok(result)
+                }
+                else
+                {
+                    unimplemented!()
+                }
+            },
+        }
+    }
+
     pub fn render_function(&mut self) -> Result<String, Error>
     {
         let mut result = String::new();
@@ -359,10 +438,14 @@ impl FunctionGenerationContext
                         result += &generate_command(&format!("rjmp {}", get_label(&self.function, label)?))?;
                     }
                 },
-                OpCode::Mov =>
+                OpCode::Mov | OpCode::Alloc | OpCode::Cast =>
                 {
                     result += self.move_instruction(&inst.arguments[0], &inst.arguments[1], false)?.as_str();
                 },
+                OpCode::Deref =>
+                {
+                    result += self.dereference_instruction(&inst.arguments[0], &inst.arguments[1])?.as_str();
+                }
                 _ => {panic!("Not yet implemented conversion for\n{}", inst)
                 }
             }

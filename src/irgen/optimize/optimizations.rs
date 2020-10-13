@@ -249,6 +249,11 @@ pub fn optimization_clean_registers(f: Function) -> Function
             {
                 if let Some(write_inst) = func.instructions.get(&writes[0])
                 {
+                    if write_inst.opcode == OpCode::Deref
+                    {
+                        continue;
+                    }
+                    
                     if write_inst.arguments.len() == 2
                     {
                         if let Value::Literal(val) = write_inst.arguments[1]

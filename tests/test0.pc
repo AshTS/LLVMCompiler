@@ -1,10 +1,7 @@
 void main()
 {
-    // Set the DDRB to 3
-    *(36 as u8*) = 3;
-
-    // Set PORTB to 3
-    *(37 as u8*) = 3;
-
-    loop;
+    loop
+    {
+        break;
+    }
 }
