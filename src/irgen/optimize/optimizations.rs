@@ -24,6 +24,8 @@ pub fn optimize_function(f: Function, level: usize) -> Function
             func = optimization_remove_nop(func);
         }
         
+        func = optimization_clean_branches(func);
+        func = optimization_remove_nop(func);
         func = optimization_remove_unused_registers(func);
         func = optimization_remove_nop(func);
         func = optimization_dead_code(func);
@@ -304,6 +306,12 @@ pub fn optimization_remove_unused_registers(f: Function) -> Function
             continue;
         }
 
+        // Skip if the symbol is an argument
+        if func.arguments.contains(&(symbol.title.clone(), symbol.datatype.clone()))
+        {
+            continue;
+        }
+
         let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
         
         // Remove Unused Symbols
@@ -314,6 +322,62 @@ pub fn optimization_remove_unused_registers(f: Function) -> Function
                 if !func.has_side_effects(index)
                 {
                     func.change_to_nop(index);
+                }
+            }
+        }
+    }
+
+    func
+}
+
+pub fn optimization_clean_branches(f: Function) -> Function
+{
+    let mut func = f.clone();
+
+    let symbols = func.get_all_symbols();
+
+    for symbol in symbols
+    {
+        // Skip the register if the datatype is a reference
+        if symbol.datatype.is_ref
+        {
+            continue;
+        }
+
+        let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
+        
+        if reads.len() == 1 && writes.len() == 1 && reads[0] == writes[0] + 1
+        {
+            let write_inst = func.instructions.get(&writes[0]).unwrap();
+            let result_branch = match write_inst.opcode
+            {
+                OpCode::Ceq => Some(OpCode::Beq),
+                OpCode::Cne => Some(OpCode::Bne),
+                OpCode::Clt => Some(OpCode::Blt),
+                OpCode::Cle => Some(OpCode::Ble),
+                OpCode::Cgt => Some(OpCode::Bgt),
+                OpCode::Cge => Some(OpCode::Bge),
+                _ => None
+            };
+
+            if result_branch.is_none() {continue;}
+
+            let mut read_inst = func.instructions.get(&reads[0]).unwrap().clone();
+
+            if result_branch.is_some() && read_inst.opcode == OpCode::Bne
+            {
+                let val = read_inst.arguments[1].clone();
+
+                if let Value::Literal(lit) = val
+                {
+                    if lit.value == 0
+                    {
+                        read_inst.opcode = result_branch.unwrap();
+                        read_inst.arguments[0] = write_inst.arguments[1].clone();
+                        read_inst.arguments[1] = write_inst.arguments[2].clone();
+
+                        func.instructions.insert(reads[0], read_inst);
+                    }
                 }
             }
         }

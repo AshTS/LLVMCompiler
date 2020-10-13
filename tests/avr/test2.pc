@@ -7,7 +7,7 @@ void main()
     u8* DDRD = 42;
     u8* PORTD = 43;
 
-    *DDRB = 15;
+    *DDRB = 14 + (1 as u8);
     *DDRD = 254;
     *PORTB = 0;
     *PORTD = 0;

@@ -403,6 +403,22 @@ impl FunctionGenerationContext
         }
     }
 
+    pub fn add_instruction(&mut self, dest: &Value, v0: &Value, v1: &Value) -> Result<String, Error>
+    {
+        match v0
+        {
+            Value::Label(_) => {Err(Error::fatal_error("Cannot use label as a value"))},
+            Value::Literal(lit0) =>
+            {
+                unimplemented!()
+            },
+            Value::Symbol(symb0) =>
+            {
+                unimplemented!()
+            },
+        }
+    }
+
     pub fn render_function(&mut self) -> Result<String, Error>
     {
         let mut result = String::new();
