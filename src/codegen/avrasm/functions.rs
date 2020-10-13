@@ -156,11 +156,8 @@ impl FunctionGenerationContext
                             result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
                         }
 
-                        if get_size_datatype(lit.datatype) == 1
-                        {
-                            result += &generate_command("st X, r16")?;
-                        }
-                        else if get_size_datatype(lit.datatype) == 2
+                        result += &generate_command("st X, r16")?;
+                        if get_size_datatype(lit.datatype) == 2
                         {
                             let new_temp = format!("{}", (lit.value & 0xFF00) >> 8);
                             if self.last_temp_assignment != new_temp
@@ -213,11 +210,8 @@ impl FunctionGenerationContext
                                 result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
                             }
 
-                            if get_size_datatype(lit.datatype) == 1
-                            {
-                                result += &generate_command("st X, r16")?;
-                            }
-                            else if get_size_datatype(lit.datatype) == 2
+                            result += &generate_command("st X, r16")?;
+                            if get_size_datatype(lit.datatype) == 2
                             {
                                 let new_temp = format!("{}", (lit.value & 0xFF00) >> 8);
                                 if self.last_temp_assignment != new_temp
@@ -265,11 +259,8 @@ impl FunctionGenerationContext
                         result += &generate_command(&format!("mov r26, {}", reg))?;
                         result += &generate_command(&format!("mov r27, {}", reg + 1))?;
 
-                        if get_size_datatype(src_symb.datatype) == 1
-                        {
-                            result += &generate_command(&format!("st X, r{}", src_reg))?;
-                        }
-                        else if get_size_datatype(src_symb.datatype) == 2
+                        result += &generate_command(&format!("st X, r{}", src_reg))?;
+                        if get_size_datatype(src_symb.datatype) == 2
                         {
                             result += &generate_command(&format!("st +X, r{}", src_reg + 1))?;
                         }
@@ -301,11 +292,8 @@ impl FunctionGenerationContext
                             result += &generate_command(&format!("ldi r26, {}", target_lit.value & 0xFF))?;
                             result += &generate_command(&format!("ldi r27, {}", (target_lit.value & 0xFF00) >> 8))?;
 
-                            if get_size_datatype(src_symb.datatype) == 1
-                            {
-                                result += &generate_command(&format!("st X, r{}", src_reg))?;
-                            }
-                            else if get_size_datatype(src_symb.datatype) == 2
+                            result += &generate_command(&format!("st X, r{}", src_reg))?;
+                            if get_size_datatype(src_symb.datatype) == 2
                             {
                                 result += &generate_command(&format!("st +X, r{}", src_reg + 1))?;
                             }
@@ -355,13 +343,10 @@ impl FunctionGenerationContext
                         result += &generate_command(&format!("ldi r26, {}", lit.value & 0xFF))?;
                         result += &generate_command(&format!("ldi r27, {}", (lit.value & 0xFF00) >> 8))?;
 
-                        if get_size_datatype(symb.datatype) == 1
+                        result += &generate_command(&format!("ld r{}, X", reg))?;
+                        if get_size_datatype(symb.datatype) == 2
                         {
-                            result += &generate_command(&format!("ld r{}, X", reg))?;
-                        }
-                        else if get_size_datatype(symb.datatype) == 2
-                        {
-                            result += &generate_command(&format!("ld r{}, +X", reg))?;
+                            result += &generate_command(&format!("ld r{}, +X", reg + 1))?;
                         }
 
                         Ok(result)
@@ -383,14 +368,10 @@ impl FunctionGenerationContext
                     result += &generate_command(&format!("mov r26, r{}", src_reg))?;
                     result += &generate_command(&format!("mov r27, r{}", src_reg + 1))?;
 
-
-                    if get_size_datatype(symb.datatype) == 1
+                    result += &generate_command(&format!("ld r{}, X", reg))?;
+                    if get_size_datatype(symb.datatype) == 2
                     {
-                        result += &generate_command(&format!("ld r{}, X", reg))?;
-                    }
-                    else if get_size_datatype(symb.datatype) == 2
-                    {
-                        result += &generate_command(&format!("ld r{}, +X", reg))?;
+                        result += &generate_command(&format!("ld r{}, +X", reg + 1))?;
                     }
 
                     Ok(result)
@@ -405,6 +386,16 @@ impl FunctionGenerationContext
 
     pub fn add_instruction(&mut self, dest: &Value, v0: &Value, v1: &Value) -> Result<String, Error>
     {
+        let dest_reg = if let Value::Symbol(symb) = dest
+        {
+            self.get_register(&symb)?
+        }
+        else
+        {
+            Err(Error::error("Unable to assign to anything but a symbol"))?;
+            unreachable!();
+        };
+
         match v0
         {
             Value::Label(_) => {Err(Error::fatal_error("Cannot use label as a value"))},
@@ -414,7 +405,52 @@ impl FunctionGenerationContext
             },
             Value::Symbol(symb0) =>
             {
-                unimplemented!()
+                // If it is an '+=' then it can be a simple add (hopefully)
+                if dest == v0
+                {
+                    let mut result = String::new();
+
+                    if let Value::Symbol(symb1) = v1
+                    {
+                        result += &generate_command(&format!("add r{}, r{}", dest_reg, self.get_register(&symb1)?))?;
+                        if get_size_datatype(symb0.datatype) == 2
+                        {
+                            result += &generate_command(&format!("adc r{}, r{}", dest_reg + 1, self.get_register(&symb1)? + 1))?;
+                        }
+                    }
+                    else if let Value::Literal(lit1) = v1
+                    {
+                        let new_temp = format!("{}", lit1.value & 0xFF);
+                        if self.last_temp_assignment != new_temp
+                        {
+                            self.last_temp_assignment = new_temp;
+                            result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                        }
+
+                        result += &generate_command(&format!("add r{}, r16", dest_reg))?;
+                        if get_size_datatype(symb0.datatype) == 2
+                        {
+                            let new_temp = format!("{}", (lit1.value & 0xFF00) >> 8);
+                            if self.last_temp_assignment != new_temp
+                            {
+                                self.last_temp_assignment = new_temp;
+                                result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            }
+
+                            result += &generate_command(&format!("adc r{}, r16", dest_reg + 1))?;
+                        }
+                    }
+                    else
+                    {
+                        unimplemented!()
+                    }
+
+                    Ok(result)
+                }
+                else
+                {
+                    unimplemented!()
+                }
             },
         }
     }
@@ -461,7 +497,11 @@ impl FunctionGenerationContext
                 OpCode::Deref =>
                 {
                     result += self.dereference_instruction(&inst.arguments[0], &inst.arguments[1])?.as_str();
-                }
+                },
+                OpCode::Add =>
+                {
+                    result += self.add_instruction(&inst.arguments[0], &inst.arguments[1], &inst.arguments[2])?.as_str();
+                },
                 _ => {panic!("Not yet implemented conversion for\n{}", inst)
                 }
             }
