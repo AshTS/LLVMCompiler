@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum NonPtrType
 {
     I8,
@@ -16,7 +16,7 @@ pub enum NonPtrType
     Unknown
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct DataType
 {
     pub raw_type: NonPtrType,

@@ -51,7 +51,7 @@ pub enum OpCode
     Call
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Symbol
 {
     pub title: String,
@@ -78,7 +78,7 @@ impl fmt::Display for Symbol
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Literal
 {
     pub value: i128,
@@ -105,7 +105,7 @@ impl fmt::Display for Literal
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value
 {
     Symbol(Symbol),
@@ -304,31 +304,38 @@ impl Function
     {
         let mut result = vec![];
 
-        if index < self.instructions.len() - 1 && self.instructions.get(&index).unwrap().opcode != OpCode::Jmp
+        if let Some(jump_vals) = self.get_jump_values(index)
         {
-            result.push(index + 1);
+            result = jump_vals;
         }
-
-        let inst = self.instructions.get(&index);
-
-        if inst.is_some()
+        else
         {
-            if inst.unwrap().opcode != OpCode::Call
+            if index < self.instructions.len() - 1
             {
-                for val in &inst.unwrap().arguments
-                {
-                    match val
-                    {
-                        Value::Label(s) =>
-                        {
-                            let v = *self.labels_reverse.get(s).unwrap();
+                result.push(index + 1);
+            }
 
-                            if !result.contains(&v)
+            let inst = self.instructions.get(&index);
+
+            if inst.is_some()
+            {
+                if inst.unwrap().opcode != OpCode::Call
+                {
+                    for val in &inst.unwrap().arguments
+                    {
+                        match val
+                        {
+                            Value::Label(s) =>
                             {
-                                result.push(v);
-                            }
-                        },
-                        _ => {}
+                                let v = *self.labels_reverse.get(s).unwrap();
+
+                                if !result.contains(&v)
+                                {
+                                    result.push(v);
+                                }
+                            },
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -589,6 +596,79 @@ impl Function
         }
 
         self.labels_reverse.remove(&label);
+    }
+
+    pub fn get_register_domain(&self, register: Value) -> Vec<usize>
+    {
+        let mut result = vec![];
+
+        let (reads, writes) = self.get_reads_writes_for(register);
+        
+        for i in 0..self.instructions.len()
+        {
+            let explored = self.get_explored_from(i);
+
+            for e in explored
+            {
+                if reads.contains(&e)
+                {
+                    if !result.contains(&i)
+                    {
+                        result.push(i);
+                    }
+                    break;
+                }
+                else if writes.contains(&e)
+                {
+                    break;
+                }
+            } 
+        }
+
+        result
+    }
+
+    
+    pub fn get_paths_from(&self, index: usize) -> Vec<Vec<usize>>
+    {
+        let mut results = vec![];
+
+        let mut fronts: Vec<(Vec<usize>, usize)> = vec![(vec![index], index)];
+
+        // While there are still instructions to explore
+        while fronts.len() > 0
+        {
+            let mut next_fronts = vec![];
+
+            for (path, current) in &fronts
+            {
+                let branches = self.get_next_branches(*current);
+
+                if branches.len() == 0
+                {
+                    results.push(path.clone());
+                }
+
+                for branch in branches
+                {
+                    if !path.contains(&branch)
+                    {
+                        let mut next_path = path.clone();
+                        next_path.push(branch);
+
+                        next_fronts.push((next_path, branch));
+                    }
+                    else
+                    {
+                        results.push(path.clone());
+                    }
+                }
+            }
+
+            fronts = next_fronts;
+        }
+
+        results
     }
 }
 

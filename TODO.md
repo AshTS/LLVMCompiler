@@ -16,7 +16,12 @@
 
 * More Optimizations
     * Constant Folding
-    * Add Register Reuse
+    * Add Register Reuse \[Done\]
+    * Find domain of register \[Done\]
+        * Find all paths from instruction \[Done\]
+
+* Add better backups of registers between function calls
+* Backup and Restore instructions
 
 ## Targets
 

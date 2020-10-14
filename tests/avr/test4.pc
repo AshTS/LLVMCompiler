@@ -1,0 +1,30 @@
+void delay(u8 m)
+{
+    u8 i = 0;
+    while (i++ < 255)
+    {
+        u8 j = 0;
+        while (j++ < 255)
+        {
+            u8 k = 0;
+            while (k++ < m);
+        }
+    }
+}
+
+void main()
+{
+    u8* DDRB = 36;
+    u8* PORTB = 37;
+
+    *DDRB = 15;
+    *PORTB = 0;
+
+    u8 counter = 0;
+
+    loop
+    {
+        *PORTB = counter++;
+        delay(4);
+    }
+}

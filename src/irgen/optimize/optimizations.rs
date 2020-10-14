@@ -1,4 +1,5 @@
-use crate::irgen::{Function, Value, OpCode};
+use crate::irgen::{Function, Value, OpCode, Symbol};
+use crate::irgen::get_value_type;
 
 pub fn optimize_function(f: Function, level: usize) -> Function
 {
@@ -7,8 +8,6 @@ pub fn optimize_function(f: Function, level: usize) -> Function
     loop 
     {
         let last = func.clone();
-
-        func = optimization_remove_nop(func);
 
         if level >= 2
         {
@@ -23,9 +22,9 @@ pub fn optimize_function(f: Function, level: usize) -> Function
             func = optimization_jump_chaining(func);
             func = optimization_remove_nop(func);
         }
-        
-        func = optimization_clean_branches(func);
+
         func = optimization_remove_nop(func);
+        func = optimization_clean_branches(func);
         func = optimization_remove_unused_registers(func);
         func = optimization_remove_nop(func);
         func = optimization_dead_code(func);
@@ -38,6 +37,8 @@ pub fn optimize_function(f: Function, level: usize) -> Function
             break;
         }
     }
+
+    func = optimization_combine_domains(func);
 
     func.clone()
 }
@@ -401,6 +402,103 @@ pub fn optimization_clean_branches(f: Function) -> Function
 
                         func.instructions.insert(reads[0], read_inst);
                     }
+                }
+            }
+        }
+    }
+
+    func
+}
+
+pub fn optimization_combine_domains(f: Function) -> Function
+{
+    let mut func = f.clone();
+    let symbols = func.get_all_symbols();
+
+    let mut domains: Vec<(usize, Value, Vec<usize>)> = vec![];
+
+    let mut to_combine = vec![];
+
+    for symbol in symbols
+    {
+        let domain = func.get_register_domain(Value::Symbol(symbol.clone()));
+
+        domains.push((domain.len(), Value::Symbol(symbol.clone()), domain.clone()));
+    }
+
+    domains.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    let mut current = vec![];
+    let mut current_domain = vec![];
+
+    for (_, val, items) in domains
+    {
+        if current.len() == 0
+        {
+            current.push(val);
+            current_domain = items.clone();
+        }
+        else
+        {
+            let mut flag = !(get_value_type(&val) == get_value_type(&current[0]));
+
+            if !flag
+            {
+                for d in &items
+                {
+                    if current_domain.contains(&d)
+                    {
+                        flag = true;
+
+                        break;
+                    }
+                }
+            }
+
+            if !flag
+            {
+                current.push(val);
+                
+                for d in &items
+                {
+                    current_domain.push(*d);
+                }
+            }
+            else
+            {
+                to_combine.push(current);
+                current = vec![val.clone()];
+                current_domain = items.clone();
+            }
+        }
+    }
+
+    to_combine.push(current);
+
+    for set in to_combine
+    {
+        let root = set[0].clone();
+        for v in &set[1..set.len()]
+        {
+            for i in 0..func.instructions.len()
+            {
+                if let Some(inst) = func.instructions.get_mut(&i)
+                {
+                    let mut new_args = vec![];
+
+                    for arg in &inst.arguments
+                    {
+                        if arg == v
+                        {
+                            new_args.push(root.clone());
+                        }
+                        else
+                        {
+                            new_args.push(arg.clone());
+                        }
+                    }
+
+                    inst.arguments = new_args;
                 }
             }
         }
