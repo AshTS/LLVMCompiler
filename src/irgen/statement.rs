@@ -1,9 +1,9 @@
-use super::{Function, Value, Literal, Expression, Instruction, OpCode, Symbol, attempt_mutate_type};
+use super::{Function, Value, Literal, Expression, Instruction, OpCode, Symbol, attempt_mutate_type, type_from_parse_tree, identifier_from_parse_tree};
 
 use crate::cli::Error;
 
-use crate::llvm::{expected_got_error, compiler_error, compiler_error_loc};
-use crate::llvm::{DataType, NonPtrType, type_from_parse_tree, identifier_from_parse_tree};
+use super::{expected_got_error, compiler_error, compiler_error_loc};
+use super::{DataType, NonPtrType};
 
 use crate::parser::ParseTreeNode;
 

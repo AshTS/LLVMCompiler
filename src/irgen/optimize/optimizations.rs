@@ -1,7 +1,7 @@
-use crate::irgen::{Function, Value, OpCode, Symbol};
+use crate::irgen::{Function, Value, OpCode};
 use crate::irgen::get_value_type;
 
-pub fn optimize_function(f: Function, level: usize) -> Function
+pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
 {
     let mut func = f.clone();
 
@@ -38,7 +38,10 @@ pub fn optimize_function(f: Function, level: usize) -> Function
         }
     }
 
-    func = optimization_combine_domains(func);
+    if combine
+    {
+        func = optimization_combine_domains(func);
+    }
 
     func.clone()
 }
@@ -427,6 +430,11 @@ pub fn optimization_combine_domains(f: Function) -> Function
     }
 
     domains.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    for d in &domains
+    {
+        println!("{:?}", d);
+    }
 
     let mut current = vec![];
     let mut current_domain = vec![];

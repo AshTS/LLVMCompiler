@@ -5,7 +5,6 @@ mod io;
 mod cli;
 mod compile;
 mod parser;
-mod llvm;
 mod irgen;
 mod codegen;
 

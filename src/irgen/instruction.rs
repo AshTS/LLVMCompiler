@@ -2,14 +2,13 @@ use std::fmt;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-use crate::llvm::{DataType, NonPtrType};
+use super::{DataType, NonPtrType};
 
 use crate::parser::ParseTreeNode;
 
-use crate::llvm::{expected_got_error};
-use crate::llvm::{identifier_from_parse_tree, type_from_parse_tree, arguments_from_parse_tree};
+use super::{expected_got_error};
 
-use super::{Statement, get_value_type};
+use super::{Statement, get_value_type, identifier_from_parse_tree, type_from_parse_tree, arguments_from_parse_tree};
 
 use crate::cli::Error;
 
@@ -602,10 +601,18 @@ impl Function
     {
         let mut result = vec![];
 
-        let (reads, writes) = self.get_reads_writes_for(register);
+        let (reads, writes) = self.get_reads_writes_for(register.clone());
+
+        println!("{:?} \n\tR:{:?} \n\tW:{:?}", &register, reads, writes);
         
         for i in 0..self.instructions.len()
         {
+            if writes.contains(&i)
+            {
+                result.push(i);
+                break;
+            }
+
             let explored = self.get_explored_from(i);
 
             for e in explored

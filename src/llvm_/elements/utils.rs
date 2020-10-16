@@ -1,3 +1,4 @@
+/*
 use crate::llvm::DataType;
 use crate::llvm::NonPtrType;
 use crate::llvm::{compiler_error, expected_got_error};
@@ -101,4 +102,4 @@ pub fn arguments_from_parse_tree(node: ParseTreeNode) -> Result<Vec<(String, Dat
             expected_got_error("Arguments or Empty", default)
         }
     }
-}
+}*/

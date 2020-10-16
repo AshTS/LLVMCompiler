@@ -1,13 +1,13 @@
 void delay(u8 m)
 {
     u8 i = 0;
-    while (i++ < 255)
+    while (++i < 255)
     {
         u8 j = 0;
-        while (j++ < 255)
+        while (++j < 255)
         {
             u8 k = 0;
-            while (k++ < m);
+            while (++k < m);
         }
     }
 }

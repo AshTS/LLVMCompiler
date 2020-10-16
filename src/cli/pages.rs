@@ -5,6 +5,7 @@ pub fn display_help()
     println!("Options:");
     println!("     --help               Display this page");
     println!(" -g            [MODE]     Set the code gen mode to use");
+    println!("     --nocomp             Do not collapse register usage");
     println!(" -o            [FILE]     Redirect the output to the given file");
     println!(" -O            [VAL]      Set the optimization level (defaults to 2)");
     println!("     --stdout             Display the output on stdout");

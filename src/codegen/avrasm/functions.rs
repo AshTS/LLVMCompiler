@@ -3,7 +3,7 @@ use crate::irgen::{Function, OpCode, Value, Symbol};
 
 use super::{generate_comment, generate_label, generate_command, get_label};
 
-use crate::llvm::{NonPtrType, DataType};
+use crate::irgen::{NonPtrType, DataType};
 
 use std::collections::HashMap;
 
@@ -146,8 +146,7 @@ impl FunctionGenerationContext
 
                         let reg = self.get_register(symb)?;
                         
-                        result += &generate_command(&format!("mov r26, {}", reg))?;
-                        result += &generate_command(&format!("mov r27, {}", reg + 1))?;
+                        result += &generate_command(&format!("movw r26, {}", reg))?;
 
                         let new_temp = format!("{}", lit.value & 0xFF);
                         if self.last_temp_assignment != new_temp
@@ -241,11 +240,15 @@ impl FunctionGenerationContext
                 {
                     if !symb.datatype.is_ref || force_move
                     {
-                        let mut result = generate_command(&format!("mov r{}, r{}", self.get_register(symb)?, src_reg))?;
+                        let mut result = String::new();
 
-                        if get_size_datatype(src_symb.datatype) == 2
+                        if get_size_datatype(src_symb.datatype) == 1
                         {
-                            result += &generate_command(&format!("mov r{}, r{}", self.get_register(symb)? + 1, src_reg + 1))?;
+                            result += &generate_command(&format!("mov r{}, r{}", self.get_register(symb)?, src_reg))?;
+                        }
+                        else if get_size_datatype(src_symb.datatype) == 2
+                        {
+                            result += &generate_command(&format!("movw r{}, r{}", self.get_register(symb)?, src_reg))?;
                         }
 
                         Ok(result)
@@ -256,8 +259,7 @@ impl FunctionGenerationContext
 
                         let reg = self.get_register(symb)?;
                         
-                        result += &generate_command(&format!("mov r26, {}", reg))?;
-                        result += &generate_command(&format!("mov r27, {}", reg + 1))?;
+                        result += &generate_command(&format!("movw r26, {}", reg))?;
 
                         result += &generate_command(&format!("st X, r{}", src_reg))?;
                         if get_size_datatype(src_symb.datatype) == 2
@@ -365,8 +367,7 @@ impl FunctionGenerationContext
                     let reg = self.get_register(symb)?;
                     let src_reg = self.get_register(src_symb)?;
 
-                    result += &generate_command(&format!("mov r26, r{}", src_reg))?;
-                    result += &generate_command(&format!("mov r27, r{}", src_reg + 1))?;
+                    result += &generate_command(&format!("movw r26, r{}", src_reg))?;
 
                     result += &generate_command(&format!("ld r{}, X", reg))?;
                     if get_size_datatype(symb.datatype) == 2
@@ -399,9 +400,16 @@ impl FunctionGenerationContext
         match v0
         {
             Value::Label(_) => {Err(Error::fatal_error("Cannot use label as a value"))},
-            Value::Literal(_lit0) =>
+            Value::Literal(_) =>
             {
-                unimplemented!()
+                if let Value::Literal(_) = v1
+                {
+                    Err(Error::error("Add command invoked with two literals"))
+                }
+                else
+                {
+                    self.add_instruction(dest, v1, v0)
+                }
             },
             Value::Symbol(symb0) =>
             {
@@ -420,14 +428,22 @@ impl FunctionGenerationContext
                     }
                     else if let Value::Literal(lit1) = v1
                     {
-                        let new_temp = format!("{}", lit1.value & 0xFF);
-                        if self.last_temp_assignment != new_temp
+                        if lit1.value == 1
                         {
-                            self.last_temp_assignment = new_temp;
-                            result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            result += &generate_command(&format!("inc r{}", dest_reg))?;
                         }
+                        else
+                        {
+                            let new_temp = format!("{}", lit1.value & 0xFF);
+                            if self.last_temp_assignment != new_temp
+                            {
+                                self.last_temp_assignment = new_temp;
+                                result += &generate_command(&format!("ldi r16, {}", self.last_temp_assignment))?;
+                            }
 
-                        result += &generate_command(&format!("add r{}, r16", dest_reg))?;
+                            result += &generate_command(&format!("add r{}, r16", dest_reg))?;
+                        }
+                        
                         if get_size_datatype(symb0.datatype) == 2
                         {
                             let new_temp = format!("{}", (lit1.value & 0xFF00) >> 8);
@@ -442,7 +458,7 @@ impl FunctionGenerationContext
                     }
                     else
                     {
-                        unimplemented!()
+                        return Err(Error::error("Unable to read value from label"));
                     }
 
                     Ok(result)
@@ -484,7 +500,7 @@ impl FunctionGenerationContext
                 }
 
                 result += &generate_command(&format!("{} {}", inst, get_label(&self.function, label0)?))?;
-                result += &generate_command(&format!("rjmp {}", get_label(&self.function, label1)?))?;
+                result += &generate_command(&format!("jmp {}", get_label(&self.function, label1)?))?;
 
                 Ok(result)
             }
@@ -535,7 +551,7 @@ impl FunctionGenerationContext
 
                     if let Value::Label(label) = &inst.arguments[0]
                     {
-                        result += &generate_command(&format!("rjmp {}", get_label(&self.function, label)?))?;
+                        result += &generate_command(&format!("jmp {}", get_label(&self.function, label)?))?;
                     }
                 },
                 OpCode::Mov | OpCode::Alloc | OpCode::Cast =>
