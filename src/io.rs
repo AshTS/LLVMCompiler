@@ -3,6 +3,7 @@ use std::io::prelude::*;
 
 use super::cli;
 
+/// Input File Struct
 pub struct InputFile
 {
     pub data: String,
@@ -11,6 +12,7 @@ pub struct InputFile
 
 impl InputFile
 {
+    /// Generate a new input file
     pub fn new(filename: String) -> Result<Self, cli::Error>
     {
         Ok(Self
@@ -21,6 +23,7 @@ impl InputFile
     }
 }
 
+/// Get a string from a file
 fn raw_read_from_file(filename: String) -> std::io::Result<String>
 {
     let mut file = File::open(filename)?;
@@ -29,6 +32,7 @@ fn raw_read_from_file(filename: String) -> std::io::Result<String>
     Ok(buffer)
 }
 
+/// Read from a filename with a Cli Result
 pub fn read_from_file(filename: String) -> Result<String, cli::Error>
 {
     match raw_read_from_file(filename.clone())

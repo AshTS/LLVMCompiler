@@ -8,6 +8,7 @@ use super::codegen::{CodeGenerator, CodegenMode};
 
 use super::parser::{ParseTreeNode, display_parse_tree};
 
+/// Compile the given input file
 pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
 {
     let mut recorder: ErrorRecorder = ErrorRecorder::new();

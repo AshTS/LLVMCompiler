@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// Error severity
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity
 {
@@ -8,6 +9,7 @@ pub enum Severity
     FatalError
 }
 
+/// Cli Error Structure
 #[derive(Debug, Clone)]
 pub struct Error
 {
@@ -17,6 +19,7 @@ pub struct Error
 
 impl Error
 {
+    /// Generate a new warning
     pub fn warning(msg: &str) -> Self
     {
         Self
@@ -26,6 +29,7 @@ impl Error
         }
     }
 
+    /// Generate a new error
     pub fn error(msg: &str) -> Self
     {
         Self
@@ -35,6 +39,7 @@ impl Error
         }
     }
 
+    /// Generate a new fatal error
     pub fn fatal_error(msg: &str) -> Self
     {
         Self
@@ -49,6 +54,7 @@ impl fmt::Display for Error
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
+        // Render an error with the given colorings
         write!(f, "compiler: ")?;
         match self.severity
         {
@@ -70,6 +76,7 @@ impl fmt::Display for Error
     }
 }
 
+/// Wrapper for an error recorder
 pub struct ErrorRecorder
 {
     recorded_errors: Vec<Error>
@@ -77,6 +84,7 @@ pub struct ErrorRecorder
 
 impl ErrorRecorder
 {
+    /// Generate a new error recorder
     pub fn new() -> Self
     {
         Self
@@ -85,6 +93,7 @@ impl ErrorRecorder
         }
     }
 
+    /// Report a new error
     pub fn report_error(&mut self, error: Error) -> Result<(), Error>
     {
         if error.severity == Severity::FatalError
@@ -99,6 +108,7 @@ impl ErrorRecorder
         }
     }
 
+    /// Unwrap a return value while reporting an error
     pub fn wrap_return<T>(&mut self, result: Result<T, Error>) -> Result<Option<T>, Error>
     {
         match result
@@ -112,6 +122,7 @@ impl ErrorRecorder
         }
     }
 
+    /// Display any recorded errors
     pub fn dump(&self)
     {
         for error in &self.recorded_errors

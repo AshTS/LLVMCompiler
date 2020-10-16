@@ -1,5 +1,6 @@
 use super::{Token, FileLocation, Stream};
 
+/// Tokenizer wrapper object
 struct Tokenizer
 {
     current_data: String,
@@ -10,6 +11,7 @@ struct Tokenizer
 
 impl Tokenizer
 {
+    /// Generate a new tokenizer
     fn new(source: Stream) -> Self
     {
         Self
@@ -21,6 +23,7 @@ impl Tokenizer
         }
     }
 
+    /// Push the current token
     fn push_current(&mut self)
     {
         if self.current_data.len() != 0
@@ -33,11 +36,13 @@ impl Tokenizer
         
     }
 
+    /// Push the current character
     fn push_char(&mut self, c: char)
     {
         self.current_data.push(c);
     }
 
+    /// Consume the next character
     fn consume(&mut self)
     {
         self.source.consume();
@@ -47,12 +52,14 @@ impl Tokenizer
         }
     }
 
+    /// Move the file position back
     fn move_back(&mut self)
     {
         self.pos.col -= 1;
     }
 }
 
+/// Tokenize input from a file
 pub fn tokenize(input: String, file_name: String) -> Vec<Token>
 {
     let mut tokenizer = Tokenizer::new(Stream::new(input, file_name));

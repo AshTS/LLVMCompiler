@@ -41,7 +41,7 @@
         * XOR
     * Function Calls
     * Stack Usage
-
+* Make writes to r16 use a wrapper function to handle storing the old temporary
 * Port stdlib to avrasm
 
 ### llvm

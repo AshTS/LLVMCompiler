@@ -1,5 +1,6 @@
 use super::{Options, Error, ErrorRecorder};
 
+/// Execute the compiler
 pub fn execute(opts: &Options) -> Result<(), Error>
 {
     let mut recorder: ErrorRecorder = ErrorRecorder::new();

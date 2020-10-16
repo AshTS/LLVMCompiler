@@ -1,6 +1,7 @@
 use std::fmt;
 use super::FileLocation;
 
+/// Token Object (data and FileLocation)
 #[derive(Debug, Clone)]
 pub struct Token
 {
@@ -10,6 +11,7 @@ pub struct Token
 
 impl Token
 {
+    /// Generate a new token object
     pub fn new(location: FileLocation, data: String) -> Self
     {
         Self

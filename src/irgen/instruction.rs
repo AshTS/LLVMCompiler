@@ -12,6 +12,7 @@ use super::{Statement, get_value_type, identifier_from_parse_tree, type_from_par
 
 use crate::cli::Error;
 
+/// Intermediate Representation OpCode
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OpCode
 {
@@ -50,6 +51,7 @@ pub enum OpCode
     Call
 }
 
+/// Symbol with type
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Symbol
 {
@@ -59,6 +61,7 @@ pub struct Symbol
 
 impl Symbol
 {
+    /// Generate a new symbol object
     pub fn new(title: String, datatype: DataType) -> Self
     {
         Symbol
@@ -77,6 +80,7 @@ impl fmt::Display for Symbol
     }
 }
 
+/// Literal with type
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Literal
 {
@@ -86,6 +90,7 @@ pub struct Literal
 
 impl Literal
 {
+    /// Generate a new literal
     pub fn new(value: i128, datatype: DataType) -> Self
     {
         Literal
@@ -104,6 +109,7 @@ impl fmt::Display for Literal
     }
 }
 
+/// Wrapper for all values viewable by IR
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value
 {
@@ -124,6 +130,8 @@ impl fmt::Display for Value
         }
     }
 }
+
+/// Intermedaite Representation Instruction
 #[derive(Debug, Clone)]
 pub struct Instruction
 {
@@ -133,6 +141,7 @@ pub struct Instruction
 
 impl Instruction
 {
+    /// Generate a new instruction
     pub fn new(opcode: OpCode, arguments: Vec<Value>) -> Self
     {
         Self
@@ -158,6 +167,7 @@ impl fmt::Display for Instruction
     }
 }
 
+/// Function implementation in Intermediate representation
 #[derive(Debug, Clone)]
 pub struct Function
 {
@@ -183,6 +193,7 @@ pub struct Function
 
 impl Function
 {
+    /// Generate a new blank function object
     pub fn new() -> Self
     {
         Self
@@ -208,6 +219,7 @@ impl Function
         }
     }
 
+    /// Generate a new function object from a parse tree node
     pub fn from_parse_tree_node(node: ParseTreeNode) -> Result<Self, Error>
     {
         match node
@@ -216,12 +228,14 @@ impl Function
             {
                 let mut result = Self::new();
 
+                // Get the function signature
                 let name = identifier_from_parse_tree(children[1].clone())?;
                 let return_type = type_from_parse_tree(children[0].clone())?;
                 let arguments = arguments_from_parse_tree(children[2].clone())?;
 
                 result.set_function_signature(return_type, name, arguments);
 
+                // Generate the code for the function
                 let refcell = RefCell::new(&mut result);
 
                 refcell.borrow_mut().return_value = Value::Symbol(Symbol::new(String::from("R0"), return_type.clone()));
@@ -246,18 +260,21 @@ impl Function
         }
     }
 
+    /// Set the function signature
     pub fn set_function_signature(&mut self, return_type: DataType, name: String, arguments: Vec<(String, DataType)>)
     {
         self.return_type = return_type;
         self.name = name;
         self.arguments = arguments;
 
+        // Insert all arguments in the symbol table
         for (s, t) in &self.arguments
         {
             self.symbol_table.insert(s.clone(), Symbol::new(s.clone(), t.clone()));
         }
     }
 
+    /// Get the jump values for an instruction at the given index
     pub fn get_jump_values(&self, index: usize) -> Option<Vec<usize>>
     {
         let inst = self.instructions.get(&index);
@@ -265,12 +282,14 @@ impl Function
 
         if inst.is_some()
         {
+            // The instruction can't be a call (the label won't exist within the function)
             if inst.unwrap().opcode != OpCode::Call
             {
                 for val in &inst.unwrap().arguments
                 {
                     match val
                     {
+                        // If an argument is a label, add that label as a possible next result
                         Value::Label(s) =>
                         {
                             let v = *self.labels_reverse.get(s).unwrap();
@@ -283,6 +302,7 @@ impl Function
             }
         }
 
+        // If there are results, return them, otherwise none
         if result.len() > 0
         {
             Some(result)
@@ -293,56 +313,36 @@ impl Function
         }
     }
 
+    /// Change an instruction at the given index to a nop
     pub fn change_to_nop(&mut self, index: usize)
     {
         self.instructions.get_mut(&index).unwrap().opcode = OpCode::Nop;
         self.instructions.get_mut(&index).unwrap().arguments = vec![];
     }
 
+    /// Get all possible branches from the instruction at the given index
     pub fn get_next_branches(&self, index: usize) -> Vec<usize>
     {
         let mut result = vec![];
 
+        // If there are jump values, those are the possible branches
         if let Some(jump_vals) = self.get_jump_values(index)
         {
             result = jump_vals;
         }
+        // Otherwise, it is just the next value
         else
         {
             if index < self.instructions.len() - 1
             {
                 result.push(index + 1);
             }
-
-            let inst = self.instructions.get(&index);
-
-            if inst.is_some()
-            {
-                if inst.unwrap().opcode != OpCode::Call
-                {
-                    for val in &inst.unwrap().arguments
-                    {
-                        match val
-                        {
-                            Value::Label(s) =>
-                            {
-                                let v = *self.labels_reverse.get(s).unwrap();
-
-                                if !result.contains(&v)
-                                {
-                                    result.push(v);
-                                }
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-            }
         }
 
         result
     } 
 
+    /// Place a label at the given index
     pub fn place_label(&mut self, label: String, index: usize)
     {
         if self.labels.contains_key(&index)
@@ -357,11 +357,13 @@ impl Function
         self.labels_reverse.insert(label.clone(), index);
     }
 
+    /// Place a label at the current instruction
     pub fn place_label_here(&mut self, label: String)
     {
         self.place_label(label, self.next_index);
     }
 
+    /// Get a new label
     pub fn get_label(&mut self) -> String
     {
         self.next_label += 1;
@@ -369,6 +371,7 @@ impl Function
         format!("L{}", self.next_label - 1)
     }
 
+    /// Get a new label and place it here
     pub fn get_label_and_place(&mut self) -> String
     {
         let label = self.get_label();
@@ -377,6 +380,7 @@ impl Function
         label.clone()
     }
 
+    /// Get a new register
     pub fn get_register(&mut self) -> String
     {
         self.next_register += 1;
@@ -384,12 +388,14 @@ impl Function
         format!("R{}", self.next_register - 1)
     }
 
+    /// Add an instruction
     pub fn add_instruction(&mut self, inst: Instruction)
     {
         self.instructions.insert(self.next_index, inst);
         self.next_index += 1;
     }
 
+    /// Enter a loop (push to the loop stack)
     pub fn enter_loop(&mut self) -> (String, String)
     {
         let entry = self.get_label();
@@ -401,12 +407,14 @@ impl Function
         (entry, exit)
     }
 
+    /// Exit a loop (pop from the loop stack)
     pub fn exit_loop(&mut self)
     {
         self.continue_stack.pop();
         self.break_stack.pop();
     }
 
+    /// Get the current continue value
     pub fn get_continue(&mut self) -> Option<String>
     {
         if self.continue_stack.len() > 0
@@ -419,6 +427,7 @@ impl Function
         }
     }
 
+    /// Get the current break value
     pub fn get_break(&mut self) -> Option<String>
     {
         if self.break_stack.len() > 0
@@ -431,6 +440,7 @@ impl Function
         }
     }
 
+    /// Get all instructions which can be reached from a given index
     pub fn get_explored_from(&self, index: usize) -> Vec<usize>
     {
         let mut fronts= vec![index];
@@ -460,6 +470,7 @@ impl Function
         explored
     }
 
+    /// Check if an instruction has side effects
     pub fn has_side_effects(&self, index: usize) -> bool
     {
         match self.instructions.get(&index)
@@ -472,17 +483,20 @@ impl Function
         }
     }
 
+    /// Get reads and writes for a given value (register)
     pub fn get_reads_writes_for(&self, value: Value) -> (Vec<usize>, Vec<usize>)
     {
         let mut reads = vec![];
         let mut writes = vec![];
 
+        // Iterate over all instructions
         for (index, inst) in &self.instructions
         {
             if inst.arguments.len() > 0
             {
                 match inst.opcode
                 {
+                    // Branches are special cases where both arguments are reads
                     OpCode::Beq | OpCode::Bge | OpCode::Bgt | OpCode::Ble | OpCode::Blt | OpCode::Bne | OpCode::Push | OpCode::Ret =>
                     {
                         if inst.arguments.contains(&value)
@@ -492,6 +506,7 @@ impl Function
                     },
                     _ => 
                     {
+                        // Otherwise, arg0 is the value written to
                         if inst.arguments[0] == value
                         {
                             if !get_value_type(&value).unwrap().is_ref || inst.opcode == OpCode::Cast
@@ -505,6 +520,7 @@ impl Function
                             
                         }
                         
+                        // And arg1 and above are values read from
                         if inst.arguments.len() > 1
                         {
                             if inst.arguments[1..inst.arguments.len()].contains(&value)
@@ -520,12 +536,15 @@ impl Function
         (reads, writes)
     }
 
+    /// Gets all symbols used by the function
     pub fn get_all_symbols(&self) -> Vec<Symbol>
     {
         let mut result = vec![];
 
+        // Iterate over all instructions
         for (_, inst) in &self.instructions
         {
+            // Go through each argument and determine if it has already been recorded, if not, record it
             for val in &inst.arguments
             {
                 if let Value::Symbol(symbol) = val
@@ -541,6 +560,7 @@ impl Function
         result
     }
 
+    /// Render the signature of the function
     pub fn render_signature(&self) -> String
     {
         let mut result = String::new();
@@ -562,6 +582,7 @@ impl Function
         result
     }
 
+    /// Remove a label from the function
     pub fn remove_label(&mut self, label: String)
     {
         if let Some(index) = self.labels_reverse.get(&label)
@@ -597,16 +618,17 @@ impl Function
         self.labels_reverse.remove(&label);
     }
 
+    /// Get the domain of a register
     pub fn get_register_domain(&self, register: Value) -> Vec<usize>
     {
         let mut result = vec![];
 
         let (reads, writes) = self.get_reads_writes_for(register.clone());
-
-        println!("{:?} \n\tR:{:?} \n\tW:{:?}", &register, reads, writes);
         
+        // Go through all instructions
         for i in 0..self.instructions.len()
         {
+            // Any write must be in the domain
             if writes.contains(&i)
             {
                 result.push(i);
@@ -615,6 +637,7 @@ impl Function
 
             let explored = self.get_explored_from(i);
 
+            // Any instruction that can reach a read before another write
             for e in explored
             {
                 if reads.contains(&e)
@@ -635,7 +658,7 @@ impl Function
         result
     }
 
-    
+    /*
     pub fn get_paths_from(&self, index: usize) -> Vec<Vec<usize>>
     {
         let mut results = vec![];
@@ -676,7 +699,7 @@ impl Function
         }
 
         results
-    }
+    }*/
 }
 
 impl fmt::Display for Function

@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// Non Pointer Type, a raw type
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum NonPtrType
 {
@@ -16,6 +17,7 @@ pub enum NonPtrType
     Unknown
 }
 
+/// A datatype with the possibility of being a pointer and a reference
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct DataType
 {
@@ -26,6 +28,7 @@ pub struct DataType
 
 impl DataType
 {
+    /// Generate a new datatype object
     pub fn new(raw: NonPtrType, ptrs: usize, is_ref: bool) -> Self
     {
         Self

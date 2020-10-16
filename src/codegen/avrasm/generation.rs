@@ -3,6 +3,7 @@ use crate::irgen::{Function};
 
 use super::FunctionGenerationContext;
 
+/// Wrapper for the AVR Assembly Code Generator
 #[derive(Debug, Clone)]
 pub struct AvrAsmGenerator
 {
@@ -11,6 +12,7 @@ pub struct AvrAsmGenerator
 
 impl AvrAsmGenerator
 {
+    /// Generate a new AvrAsmGenerator from a vector of IR functions
     pub fn new(functions: Vec<Function>) -> Self
     {
         Self
@@ -19,6 +21,7 @@ impl AvrAsmGenerator
         }
     }
 
+    /// Render each function in turn
     pub fn render(self) -> Result<String, Error>
     {
         let mut result = String::new();

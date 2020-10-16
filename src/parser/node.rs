@@ -78,6 +78,7 @@ pub enum ParseTreeNode
     Empty
 }
 
+/// Render a parse tree node
 fn render_node(node: ParseTreeNode) -> (String, Vec<ParseTreeNode>)
 {
     match node
@@ -106,6 +107,7 @@ fn render_node(node: ParseTreeNode) -> (String, Vec<ParseTreeNode>)
     }
 }
 
+/// Display a parse tree
 pub fn display_parse_tree(node: ParseTreeNode, prev: String, is_last: bool)
 {
     let mut mprev = prev.clone();

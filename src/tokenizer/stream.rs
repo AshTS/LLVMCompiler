@@ -2,6 +2,7 @@ use std::fmt;
 
 static DEFAULT_FILE_NAME: &'static str = "[unknown]";
 
+/// Location within a file (name, line, column)
 #[derive(Debug, Clone)]
 pub struct FileLocation
 {
@@ -12,6 +13,7 @@ pub struct FileLocation
 
 impl FileLocation
 {
+    /// Generate a new FileLocation object
     pub fn new() -> Self
     {
         FileLocation
@@ -22,6 +24,7 @@ impl FileLocation
         }
     }
 
+    /// Generate new FileLocation from a file name
     pub fn from_name(name: &str) -> Self
     {
         FileLocation
@@ -32,6 +35,7 @@ impl FileLocation
         }
     }
 
+    /// Consume a character and move the file location accordingly
     pub fn consume_char(&mut self, value: char)
     {
         self.col += 1;
@@ -51,6 +55,7 @@ impl fmt::Display for FileLocation
     }
 }
 
+/// Stream object (pairs in a FileLocation)
 pub struct Stream
 {
     index: usize,
@@ -60,6 +65,7 @@ pub struct Stream
 
 impl Stream
 {
+    /// Generate a new Stream object
     pub fn new(data: String, file_name: String) -> Self
     {
         Self
@@ -70,6 +76,7 @@ impl Stream
         }
     }
 
+    /// Peek at the next character
     pub fn peek(&self) -> Option<(char, FileLocation)>
     {
         if self.index + 1 >= self.data.len()
@@ -90,6 +97,7 @@ impl Stream
         }
     }
 
+    /// Get the current character
     pub fn current(&self) -> Option<(char, FileLocation)>
     {
         if self.index >= self.data.len()
@@ -110,6 +118,7 @@ impl Stream
         }
     }
 
+    /// Consume the current character
     pub fn consume(&mut self) -> bool
     {
         self.index += 1;
@@ -125,11 +134,13 @@ impl Stream
         }
     }
 
+    /// Get the current location
     pub fn current_location(&self) -> FileLocation
     {
         self.location.clone()
     }
 
+    /// Check the next character
     pub fn check_next(&self, c: char) -> bool
     {
         match self.peek()
@@ -139,6 +150,7 @@ impl Stream
         }
     }
 
+    /// Check the next character against a vector
     pub fn check_next_vec(&self, v: Vec<char>) -> bool
     {
         match self.peek()

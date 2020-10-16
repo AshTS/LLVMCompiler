@@ -11,6 +11,7 @@ use crate::tokenizer::{Token, FileLocation};
 
 use std::cell::RefCell;
 
+/// Statement Types for a IR generation
 #[derive(Debug, Clone)]
 pub enum StatementType
 {
@@ -27,6 +28,7 @@ pub enum StatementType
     ExpressionStatement
 }
 
+/// Statement for IR Generation
 #[derive(Debug, Clone)]
 pub struct Statement
 {
@@ -39,6 +41,7 @@ pub struct Statement
 
 impl Statement
 {
+    /// Generate a new IR Statement
     pub fn new(mode: StatementType) -> Self
     {
         Self
@@ -51,6 +54,7 @@ impl Statement
         }
     }
 
+    /// Generate a new IR Statement with a token
     pub fn new_with_token(mode: StatementType, token: &Token) -> Self
     {
         Self
@@ -63,11 +67,13 @@ impl Statement
         }
     }
 
+    /// Add a child to the IR Statement
     pub fn add_child(&mut self, child: Self)
     {
         self.children.push(child);
     }
 
+    /// Generate a new IR Statement from a parse tree node
     pub fn from_parse_tree_node(node: ParseTreeNode, func: &RefCell<&mut Function>) -> Result<Self, Error>
     {
         match &node
@@ -243,6 +249,7 @@ impl Statement
         }
     }
 
+    /// Render the statement
     pub fn render(&self, func: &RefCell<&mut Function>) -> Result<(), Error>
     {
         match self.mode

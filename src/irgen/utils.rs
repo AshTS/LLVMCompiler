@@ -7,6 +7,7 @@ use crate::parser::ParseTreeNode;
 
 use crate::cli::Error;
 
+/// Attempt to change a value's type from unknown to a new datatype
 pub fn attempt_mutate_type(value: Value, new_type: DataType) -> Value
 {
     match value
@@ -26,6 +27,7 @@ pub fn attempt_mutate_type(value: Value, new_type: DataType) -> Value
     }
 }
 
+/// Get the type of a value
 pub fn get_value_type(value: &Value) -> Option<DataType>
 {
     match value
@@ -36,6 +38,7 @@ pub fn get_value_type(value: &Value) -> Option<DataType>
     }
 }
 
+/// Check if a value has an unknown type
 pub fn has_unknown_type(value: &Value) -> bool
 {
     match get_value_type(value)
@@ -45,6 +48,7 @@ pub fn has_unknown_type(value: &Value) -> bool
     }
 }
 
+/// Remove any references
 pub fn correct_type_references(datatype: DataType) -> DataType
 {
     let mut result = datatype.clone();
@@ -54,6 +58,7 @@ pub fn correct_type_references(datatype: DataType) -> DataType
     result
 }
 
+/// Extract a datatype from a parse tree node
 pub fn type_from_parse_tree(node: ParseTreeNode) -> Result<DataType, Error>
 {
     match node
@@ -99,6 +104,7 @@ pub fn type_from_parse_tree(node: ParseTreeNode) -> Result<DataType, Error>
     }
 }
 
+/// Extract an identifier from a parse tree node
 pub fn identifier_from_parse_tree(node: ParseTreeNode) -> Result<String, Error>
 {
     match node
@@ -114,6 +120,7 @@ pub fn identifier_from_parse_tree(node: ParseTreeNode) -> Result<String, Error>
     }
 }
 
+/// Extract arguments from a parse tree node
 pub fn arguments_from_parse_tree(node: ParseTreeNode) -> Result<Vec<(String, DataType)>, Error>
 {
     match node

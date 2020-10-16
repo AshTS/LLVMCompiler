@@ -36,6 +36,7 @@ pub enum ExpressionType
     AssignmentExpression(Option<OpCode>),
 }
 
+/// Expression Struct
 #[derive(Debug, Clone)]
 pub struct Expression
 {
@@ -47,6 +48,7 @@ pub struct Expression
 
 impl Expression
 {
+    /// Generate a new expression object
     pub fn new(mode: ExpressionType, value: Option<Value>, children: Vec<Expression>) -> Self
     {
         Self
@@ -58,6 +60,7 @@ impl Expression
         }
     }
 
+    /// Generate a new expression object which references a token
     pub fn new_with_token(mode: ExpressionType, value: Option<Value>, children: Vec<Expression>, token: &Token) -> Self
     {
         Self
@@ -306,6 +309,7 @@ impl Expression
         }
     }
 
+    /// Render an expression
     pub fn render(&mut self, func: &RefCell<&mut Function>) -> Result<(), Error>
     {
         match self.mode.clone()
@@ -750,6 +754,7 @@ impl Expression
         Ok(())
     }
 
+    /// Get the return value from an expression
     pub fn value(&self, _func: &RefCell<&mut Function>) -> Result<Value, Error>
     {
         Ok(self.value.clone().unwrap())

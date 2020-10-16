@@ -15,7 +15,7 @@ pub fn display_help()
     println!("   avrasm");
 }
 
-// Display the version page
+/// Display the version page
 pub fn display_version()
 {
     println!("compiler v0.0.0");

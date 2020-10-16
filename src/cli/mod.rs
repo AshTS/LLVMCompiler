@@ -6,6 +6,7 @@ mod execute;
 pub use options::*;
 pub use errors::*;
 
+/// Run the application with the given options
 pub fn run(opts: &Options) -> Result<(), Error>
 {
     // Display the help documentation if the help flag is included

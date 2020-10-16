@@ -16,6 +16,7 @@ lazy_static!
     static ref INTEGER_REGEX: Regex = Regex::new(r"\A[0-9]+").unwrap();
 }
 
+/// Token Stream
 #[derive(Debug, Clone)]
 pub struct Stream
 {
@@ -25,6 +26,7 @@ pub struct Stream
 
 impl Stream
 {
+    /// Generate a new token stream object
     pub fn new(tokens: Vec<Token>) -> Self
     {
         Self
@@ -34,6 +36,7 @@ impl Stream
         }
     }
 
+    /// Peek at the next token
     pub fn peek(&self) -> Option<Token>
     {
         if self.index + 1 < self.tokens.len()
@@ -46,6 +49,7 @@ impl Stream
         }
     }
 
+    /// Get the current token
     pub fn current(&self) -> Option<Token>
     {
         if self.index < self.tokens.len()
@@ -58,22 +62,26 @@ impl Stream
         }
     }
 
+    /// Consume the curent token
     pub fn consume(&mut self) -> bool
     {
         self.index += 1;
         self.index < self.tokens.len()
     }
 
+    /// Check the next token
     pub fn check_next(&self, data: String) -> bool
     {
         (self.index + 1 < self.tokens.len()) && (self.peek().unwrap().data == data)
     }
 
+    /// Check the current token
     pub fn check_current(&self, data: String) -> bool
     {
         (self.index < self.tokens.len()) && (self.current().unwrap().data == data)
     }
 
+    /// Expect a token at an offset from the current token
     fn expect_at(&self, data: String, index: usize) -> Result<(), Error>
     {
         if index < self.tokens.len()
@@ -94,11 +102,13 @@ impl Stream
         }
     }
 
+    /// Expect a token at the current position
     pub fn expect(&self, data: String) -> Result<(), Error>
     {
         self.expect_at(data, self.index)
     }
 
+    /// Expect and consume a token
     pub fn expect_and_consume(&mut self, data: String) -> Result<(), Error>
     {
         match self.expect_at(data, self.index)
@@ -108,11 +118,13 @@ impl Stream
         }
     }
     
+    /// Expect the next token
     pub fn expect_next(&self, data: String) -> Result<(), Error>
     {
         self.expect_at(data, self.index + 1)
     }
 
+    /// Expect that the EOF hasn't been reached
     pub fn expect_current_exists(&self, s: &str) -> Result<(), Error>
     {
         if self.current().is_none()
@@ -125,6 +137,7 @@ impl Stream
         }
     }
 
+    /// Accept a stream
     pub fn accept_stream(&mut self, result: Result<(Stream, ParseTreeNode), Error>) -> Result<ParseTreeNode, Error>
     {
         let val = result?;
