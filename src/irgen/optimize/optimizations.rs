@@ -5,6 +5,11 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
 {
     let mut func = f.clone();
 
+    func = optimization_clean_branches(func);
+    func = optimization_remove_nop(func);
+
+    let mut last_loop = false;
+
     loop 
     {
         let last = func.clone();
@@ -26,9 +31,9 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
         }
 
         // Level 0 Optimizations (Clean Branches, Remove Unused Registers, Remove Dead Code, Remove Unused Labels, Remove Nop's)
-        func = optimization_remove_nop(func);
-        func = optimization_clean_branches(func);
         func = optimization_remove_unused_registers(func);
+        func = optimization_remove_nop(func);
+        func = optimization_redundant_moves(func);
         func = optimization_remove_nop(func);
         func = optimization_dead_code(func);
         func = optimization_remove_nop(func);
@@ -38,7 +43,16 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
         // If the code has changed length, keep going
         if func.instructions.len() == last.instructions.len()
         {
-            break;
+            if last_loop
+            {
+                break;
+            }
+            
+            last_loop = true;
+        }
+        else
+        {
+            last_loop = false;
         }
     }
 
@@ -46,6 +60,7 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
     if combine
     {
         func = optimization_combine_domains(func);
+        func = optimize_function(func, level, false);
     }
 
     func.clone()
@@ -294,6 +309,7 @@ pub fn optimization_clean_registers(f: Function) -> Function
 
     for symbol in symbols
     {
+
         // Skip the register if the datatype is a reference (the instruction will have side effects)
         if symbol.datatype.is_ref
         {
@@ -301,7 +317,7 @@ pub fn optimization_clean_registers(f: Function) -> Function
         }
 
         let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
-        
+
         // Replace Constants
         if writes.len() == 1
         {
@@ -313,8 +329,8 @@ pub fn optimization_clean_registers(f: Function) -> Function
                     {
                         continue;
                     }
-                    
-                    if write_inst.arguments.len() == 2
+
+                    if write_inst.opcode == OpCode::Mov
                     {
                         if let Value::Literal(val) = write_inst.arguments[1]
                         {
@@ -339,6 +355,78 @@ pub fn optimization_clean_registers(f: Function) -> Function
                                 }
 
                                 func.instructions.get_mut(&index).unwrap().arguments = new_arguments;
+                            }
+                        }
+
+                        else if let Value::Symbol(symb) = &write_inst.arguments[1]
+                        {
+                            // Copy the symbol
+                            let val = symb.clone();
+
+                            // Extract the reads for the symbol
+                            let (_, val_reads) = func.get_reads_writes_for(Value::Symbol(val.clone()));
+
+                            // Indexes of instructions to not overwrite
+                            let mut disallow = vec![];
+                            // Indexes of instructions reachable from the write
+                            let mut explored = vec![];
+
+                            // Go over each path
+                            for path in func.get_paths_from(writes[0])
+                            {
+                                // If the path contains a read
+                                for r in &reads
+                                {
+                                    if path.contains(r)
+                                    {
+                                        let mut spoiled = false;
+
+                                        // Go through the path
+                                        for p in path
+                                        {
+                                            // Fill the explored vector
+                                            if !explored.contains(&p)
+                                            {
+                                                explored.push(p);
+                                            }
+
+                                            // Append to the disallowed vector if the values have been spoiled
+                                            if spoiled && !disallow.contains(&p)
+                                            {
+                                                disallow.push(p);
+                                            }
+                                            if val_reads.contains(&p)
+                                            {
+                                                spoiled = true;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Go over every read for the variable
+                            for read in reads
+                            {
+                                // If it can be reached, but never through a write to the original variable, replace it
+                                if explored.contains(&read) && !disallow.contains(&read)
+                                {
+                                    let mut new_arguments = vec![];
+
+                                    for arg in &func.instructions.get(&read).unwrap().arguments
+                                    {
+                                        if *arg == Value::Symbol(symbol.clone())
+                                        {
+                                            new_arguments.push(Value::Symbol(val.clone()));
+                                        }
+                                        else
+                                        {
+                                            new_arguments.push(arg.clone());
+                                        }
+                                    }
+
+                                    func.instructions.get_mut(&read).unwrap().arguments = new_arguments;
+                                }
                             }
                         }
                     }
@@ -372,7 +460,7 @@ pub fn optimization_remove_unused_registers(f: Function) -> Function
         }
 
         let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
-        
+
         // Remove Unused Symbols
         if reads.len() == 0
         {
@@ -410,6 +498,7 @@ pub fn optimization_clean_branches(f: Function) -> Function
         {
             // Get the opcode for the proper branch
             let write_inst = func.instructions.get(&writes[0]).unwrap();
+
             let result_branch = match write_inst.opcode
             {
                 OpCode::Ceq => Some(OpCode::Beq),
@@ -439,6 +528,7 @@ pub fn optimization_clean_branches(f: Function) -> Function
                         read_inst.arguments[1] = write_inst.arguments[2].clone();
 
                         func.instructions.insert(reads[0], read_inst);
+                        func.change_to_nop(writes[0]);
                     }
                 }
             }
@@ -552,6 +642,22 @@ pub fn optimization_combine_domains(f: Function) -> Function
             }
         }
     }
+
+    func
+}
+
+/// Remove redundant moves
+pub fn optimization_redundant_moves(f: Function) -> Function
+{
+    let mut func = f.clone();
+
+    for (i, instruction) in &func.instructions.clone()
+    {
+        if instruction.opcode == OpCode::Mov && instruction.arguments[0] == instruction.arguments[1] 
+        {
+            func.change_to_nop(*i);
+        }
+    }  
 
     func
 }

@@ -256,7 +256,6 @@ impl Statement
         {
             StatementType::Empty =>
             {
-                func.borrow_mut().add_instruction(Instruction::new(OpCode::Nop, vec![]))
             },
             StatementType::CompoundStatement =>
             {
@@ -344,7 +343,7 @@ impl Statement
                 func.borrow_mut().place_label_here(clause.clone());
 
                 // Render the clause
-                self.children[0].render(func)?;
+                self.children[1].render(func)?;
 
                 // Place the exit label
                 func.borrow_mut().place_label_here(exit.clone());

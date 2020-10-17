@@ -58,6 +58,9 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
             for child in children
             {
                 let mut function = irgen::Function::from_parse_tree_node(child)?;
+
+                println!("{}", function);
+
                 function = irgen::optimize_function(function, optimization_level, !options.has_long_flag("nocomp"));
 
                 functions.push(function);

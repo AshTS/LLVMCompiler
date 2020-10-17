@@ -542,8 +542,10 @@ impl Function
         let mut result = vec![];
 
         // Iterate over all instructions
-        for (_, inst) in &self.instructions
+        for i in 0..self.instructions.len()
         {
+            let inst = self.instructions.get(&i).unwrap();
+            
             // Go through each argument and determine if it has already been recorded, if not, record it
             for val in &inst.arguments
             {
@@ -658,7 +660,7 @@ impl Function
         result
     }
 
-    /*
+
     pub fn get_paths_from(&self, index: usize) -> Vec<Vec<usize>>
     {
         let mut results = vec![];
@@ -699,7 +701,7 @@ impl Function
         }
 
         results
-    }*/
+    }
 }
 
 impl fmt::Display for Function
