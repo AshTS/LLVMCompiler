@@ -1,0 +1,21 @@
+i32 strlen(u8* str)
+{
+    i32 len = 0;
+
+   while *str != 0
+   {
+       len++;
+       str++;
+   }
+
+   return len;
+}
+
+i32 main(i32 argc, u8** argv)
+{
+    if argc > 1
+    {
+        return strlen(argv[1]);
+    }
+    return -1;
+}
