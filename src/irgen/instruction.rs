@@ -219,6 +219,25 @@ impl Function
         }
     }
 
+    /// Clean up the reverse labels hashmap
+    pub fn clean_reverse_labels(&mut self)
+    {
+        let mut new_reverse = HashMap::new();
+
+        for i in 0..self.instructions.len()
+        {
+            if let Some(labels) = self.labels.get(&i)
+            {
+                for label in labels
+                {
+                    new_reverse.insert(label.clone(), i);
+                }
+            }
+        }
+
+        self.labels_reverse = new_reverse;
+    }
+
     /// Generate a new function object from a parse tree node
     pub fn from_parse_tree_node(node: ParseTreeNode) -> Result<Self, Error>
     {

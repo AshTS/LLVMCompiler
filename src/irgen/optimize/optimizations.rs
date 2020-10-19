@@ -17,7 +17,9 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
         // Level 2 Optimizations (Clean Register Usage)
         if level >= 2
         {
+            // func = optimization_multiple_clean_registers(func);
             func = optimization_clean_registers(func);
+            
             func = optimization_remove_nop(func);
         }
 
@@ -37,6 +39,7 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
         func = optimization_remove_nop(func);
         func = optimization_dead_code(func);
         func = optimization_remove_nop(func);
+        func = optimization_redundant_labels(func);
         func = optimization_remove_unused_labels(func);
         func = optimization_remove_nop(func);
 
@@ -88,6 +91,24 @@ pub fn optimization_remove_nop(f: Function) -> Function
     // Go over all instructions
     for i in 0..func.instructions.len()
     {
+        // Move any labels on nop's
+        if indexes_to_remove.contains(&i)
+        {
+            // Move the labels
+            if let Some(mut labels)= func.labels.remove(&i)
+            {
+                if let Some(next_labels) = func.labels.get(&(i + 1))
+                {
+                    for l in next_labels
+                    {
+                        labels.push(l.clone());
+                    }
+                }
+
+                func.labels.insert(i + 1, labels);
+            }
+        }
+
         // If an instruction should be shifted
         if amt_to_shift != 0
         {
@@ -96,16 +117,15 @@ pub fn optimization_remove_nop(f: Function) -> Function
             func.instructions.insert(i - amt_to_shift, inst);
 
             // Move the labels
-            let labels = func.labels.remove(&i);
-            if labels.is_some()
+            if let Some(labels)= func.labels.remove(&i)
             {
-                for label in &labels.clone().unwrap()
+                for label in &labels.clone()
                 {
                     let last = func.labels_reverse.remove(label).unwrap();
                     func.labels_reverse.insert(label.clone(), last - amt_to_shift);
                 }
 
-                func.labels.insert(i - amt_to_shift, labels.clone().unwrap());
+                func.labels.insert(i - amt_to_shift, labels.clone());
             }
         }
 
@@ -115,6 +135,8 @@ pub fn optimization_remove_nop(f: Function) -> Function
             amt_to_shift += 1;
         }
     }
+
+    func.clean_reverse_labels();
 
     func.clone()
 }
@@ -172,6 +194,14 @@ pub fn optimization_jump_chaining(f: Function) -> Function
                         func.instructions.get_mut(&index).unwrap().arguments[3] = next.arguments[0].clone();
                     }
                 } 
+
+                // If both branches branch to the same point, make the instruction a jump
+                if &vs[0] == &vs[1]
+                {
+                    let v = func.instructions.get(&index).unwrap().arguments[2].clone();
+                    func.instructions.get_mut(&index).unwrap().arguments = vec![v];
+                    func.instructions.get_mut(&index).unwrap().opcode = OpCode::Jmp;
+                }
             }
         }
     }
@@ -196,13 +226,12 @@ pub fn optimization_remove_unused_labels(f: Function) -> Function
             }
         }
     }
-
+    
     // Go over all labels stored and if they weren't used, mark them for removal
     let mut labels_to_remove = vec![];
     
     for l in func.labels_reverse.keys()
     {
-
         if !labels.contains(l)
         {
             labels_to_remove.push(l.clone());
@@ -300,7 +329,7 @@ pub fn optimization_remove_casts(f: Function) -> Function
     func
 }
 
-/// Replace constants written to registers
+/// Replace constants and symbols on registers with only one write
 pub fn optimization_clean_registers(f: Function) -> Function
 {
     let mut func = f.clone();
@@ -437,6 +466,127 @@ pub fn optimization_clean_registers(f: Function) -> Function
 
     func
 }
+/* ========= Does not yet function as intended, will require a reverse trace back through the instructions
+/// Replace constants and symbols on registers with multiple writes
+pub fn optimization_multiple_clean_registers(f: Function) -> Function
+{
+    let mut func = f.clone();
+
+    let symbols = func.get_all_symbols();
+
+    for symbol in symbols
+    {
+
+        // Skip the register if the datatype is a reference (the instruction will have side effects)
+        if symbol.datatype.is_ref
+        {
+            continue;
+        }
+
+        let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
+
+        for write in &writes
+        {
+            if !func.arguments.contains(&(symbol.title.clone(), symbol.datatype.clone()))
+            {
+                if let Some(write_inst) = func.instructions.get(&write)
+                {
+                    if write_inst.opcode == OpCode::Deref
+                    {
+                        continue;
+                    }
+
+                    if write_inst.opcode == OpCode::Mov
+                    {
+                        if let Value::Literal(val) = write_inst.arguments[1]
+                        {
+                            // Not yet implemented
+                        }
+                        else if let Value::Symbol(symb) = &write_inst.arguments[1]
+                        {
+                            // Copy the symbol
+                            let val = symb.clone();
+
+                            // Extract the reads for the symbol
+                            let (_, val_reads) = func.get_reads_writes_for(Value::Symbol(val.clone()));
+
+                            // Indexes of instructions to not overwrite
+                            let mut disallow = vec![];
+                            // Indexes of instructions reachable from the write
+                            let mut explored = vec![];
+
+                            // Go over each path
+                            for path in func.get_paths_from(*write)
+                            {
+                                // If the path contains a read
+                                for r in &reads
+                                {
+                                    if path.contains(&r)
+                                    {
+                                        let mut spoiled = false;
+
+                                        // Go through the path
+                                        for p in path
+                                        {
+                                            // Stop if a new write is reached
+                                            if p != *write && writes.contains(&p)
+                                            {
+                                                break;
+                                            }
+
+                                            // Fill the explored vector
+                                            if !explored.contains(&p)
+                                            {
+                                                explored.push(p);
+                                            }
+
+                                            // Append to the disallowed vector if the values have been spoiled
+                                            if spoiled && !disallow.contains(&p)
+                                            {
+                                                disallow.push(p);
+                                            }
+                                            if val_reads.contains(&p)
+                                            {
+                                                spoiled = true;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Go over every read for the variable
+                            for read in &reads
+                            {
+                                // If it can be reached, but never through a write to the original variable, replace it
+                                if explored.contains(&read) && !disallow.contains(&read)
+                                {
+                                    let mut new_arguments = vec![];
+
+                                    for arg in &func.instructions.get(&read).unwrap().arguments
+                                    {
+                                        if *arg == Value::Symbol(symbol.clone())
+                                        {
+                                            new_arguments.push(Value::Symbol(val.clone()));
+                                        }
+                                        else
+                                        {
+                                            new_arguments.push(arg.clone());
+                                        }
+                                    }
+
+                                    func.instructions.get_mut(&read).unwrap().arguments = new_arguments;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func
+}*/
 
 /// Remove any unused registers
 pub fn optimization_remove_unused_registers(f: Function) -> Function
@@ -453,22 +603,47 @@ pub fn optimization_remove_unused_registers(f: Function) -> Function
             continue;
         }
 
-        // Skip if the symbol is an argument
-        if func.arguments.contains(&(symbol.title.clone(), symbol.datatype.clone()))
-        {
-            continue;
-        }
-
         let (reads, writes) = func.get_reads_writes_for(Value::Symbol(symbol.clone()));
-
+        /*
         // Remove Unused Symbols
         if reads.len() == 0
         {
-            for index in writes
+            for index in &writes
             {
-                if !func.has_side_effects(index)
+                if !func.has_side_effects(*index)
                 {
-                    func.change_to_nop(index);
+                    func.change_to_nop(*index);
+                }
+            }
+        }*/
+
+        // Remove any writes which are never read
+        for write in &writes
+        {
+            if !func.has_side_effects(*write)
+            {
+                let explored = &func.get_explored_from(*write)[1..];
+                /*
+                println!("For: {}", &func.instructions.get(write).unwrap());
+
+                println!("Explored: {:?}", explored);
+                println!("Reads: {:?}", reads);*/
+
+                let mut found_read = false;
+                for r in &reads
+                {
+                    if explored.contains(r)
+                    {
+                        found_read = true;
+                        break;
+                    }
+                }
+
+                // println!("{}\n\n", found_read);
+
+                if !found_read
+                {
+                    func.change_to_nop(*write);
                 }
             }
         }
@@ -615,6 +790,11 @@ pub fn optimization_combine_domains(f: Function) -> Function
     // Go over all register to combine
     for set in to_combine
     {
+        if set.len() == 0
+        {
+            continue;
+        }
+
         let root = set[0].clone();
         for v in &set[1..set.len()]
         {
@@ -658,6 +838,53 @@ pub fn optimization_redundant_moves(f: Function) -> Function
             func.change_to_nop(*i);
         }
     }  
+
+    func
+}
+
+/// Remove redundant labels
+pub fn optimization_redundant_labels(f: Function) -> Function
+{
+    let mut func = f.clone();
+
+    // Loop over every instruction
+    for i in 0..func.instructions.len()
+    {
+        if let Some(inst) = func.instructions.get(&i)
+        {
+            let mut new_args = vec![];
+            let mut flag = false;
+
+            // Go over each argument
+            for arg in &inst.arguments
+            {
+                // If the argument is a label, get the first label from the labels
+                // pointing to the destination line
+                if let Value::Label(label) = arg
+                {
+                    if let Some(target) = func.labels_reverse.get(label)
+                    {
+                        if let Some(labels) = func.labels.get(target)
+                        {
+                            new_args.push(Value::Label(labels[0].clone()));
+                            flag = true;
+                        }
+                    }
+                }
+                // Otherwise just use the original argument
+                else
+                {
+                    new_args.push(arg.clone());
+                }
+            }
+
+            // If a change has been made, write the new argument
+            if flag
+            {
+                func.instructions.get_mut(&i).unwrap().arguments = new_args;
+            }
+        }
+    }
 
     func
 }
