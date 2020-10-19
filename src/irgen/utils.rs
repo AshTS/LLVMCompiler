@@ -27,6 +27,37 @@ pub fn attempt_mutate_type(value: Value, new_type: DataType) -> Value
     }
 }
 
+/// Force a change a value's type from unknown to a new datatype
+pub fn force_mutate_type(value: Value, new_type: DataType) -> Value
+{
+    match value
+    {
+        Value::Literal(literal) =>
+        {
+            let mut lit = literal.clone();
+
+            if lit.datatype.raw_type == NonPtrType::Unknown
+            {
+                lit.datatype = correct_type_references(new_type);
+            }
+
+            Value::Literal(lit)
+        },
+        Value::Symbol(symb) =>
+        {
+            let mut s = symb.clone();
+
+            if s.datatype.raw_type == NonPtrType::Unknown
+            {
+                s.datatype = correct_type_references(new_type);
+            }
+
+            Value::Symbol(s)
+        }
+        _ => value
+    }
+}
+
 /// Get the type of a value
 pub fn get_value_type(value: &Value) -> Option<DataType>
 {

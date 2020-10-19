@@ -11,8 +11,8 @@ i32 test(i32 a)
     {
         a++;
     }
-    
-    b = a * b;
+
+    b = a * b + 7 * 8 * 9;
 
     return b;
 }

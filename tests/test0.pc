@@ -1,7 +1,4 @@
-void main()
+i32 main()
 {
-    loop
-    {
-        break;
-    }
+    return 5 + 4;
 }

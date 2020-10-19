@@ -32,7 +32,8 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
             func = optimization_remove_nop(func);
         }
 
-        // Level 0 Optimizations (Clean Branches, Remove Unused Registers, Remove Dead Code, Remove Unused Labels, Remove Nop's)
+        // Level 0 Optimizations (Constant Folding, Clean Branches, Remove Unused Registers, Remove Dead Code, Remove Unused Labels, Remove Nop's)
+        func = optimization_arithmatic_constants(func);
         func = optimization_remove_unused_registers(func);
         func = optimization_remove_nop(func);
         func = optimization_redundant_moves(func);
@@ -226,7 +227,7 @@ pub fn optimization_remove_unused_labels(f: Function) -> Function
             }
         }
     }
-    
+
     // Go over all labels stored and if they weren't used, mark them for removal
     let mut labels_to_remove = vec![];
     
@@ -260,6 +261,15 @@ pub fn optimization_dead_code(f: Function) -> Function
     {
         if !explored.contains(&index)
         {
+            // Do not remove return
+            if let Some(inst) = func.instructions.get(&index)
+            {
+                if inst.opcode == OpCode::Ret
+                {
+                    continue;
+                }
+            }
+
             func.change_to_nop(index);
         }
     }
@@ -885,6 +895,53 @@ pub fn optimization_redundant_labels(f: Function) -> Function
             }
         }
     }
+
+    func
+}
+
+/// Perform arithmatic operations on constants
+pub fn optimization_arithmatic_constants(f: Function) -> Function
+{
+    let mut func = f.clone();
+
+    for (i, instruction) in &func.instructions.clone()
+    {
+        if instruction.arguments.len() > 2
+        {
+            if let Value::Literal(lit0) = instruction.arguments[1]
+            {
+                if let Value::Literal(lit1) = instruction.arguments[2]
+                {
+                    match instruction.opcode
+                    {
+                        OpCode::Add | OpCode::Sub | OpCode::Mul | OpCode::Div =>
+                        {
+                            let mut new_inst = instruction.clone();
+
+                            new_inst.opcode = OpCode::Mov;
+                            if let Value::Literal(mut new_arg) = new_inst.arguments[1].clone()
+                            {
+                                new_arg.value = 
+                                match instruction.opcode
+                                {
+                                    OpCode::Add => lit0.value + lit1.value,
+                                    OpCode::Sub => lit0.value - lit1.value,
+                                    OpCode::Mul => lit0.value * lit1.value,
+                                    OpCode::Div => lit0.value / lit1.value,
+                                    _ => {panic!()}
+                                };
+
+                                new_inst.arguments = vec![new_inst.arguments[0].clone(), Value::Literal(new_arg)];
+
+                                func.instructions.insert(*i, new_inst);
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }  
 
     func
 }
