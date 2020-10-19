@@ -77,7 +77,7 @@ pub fn compile(input: InputFile, options: &Options) -> Result<(), Error>
         codegen_mode = CodegenMode::from_mode(&name[0]);
     }
 
-    let output = CodeGenerator::new(codegen_mode, functions).render()?;
+    let output = CodeGenerator::new(codegen_mode, functions, options.clone()).render()?;
 
     // Display Output to stdout
     if options.has_long_flag("stdout")

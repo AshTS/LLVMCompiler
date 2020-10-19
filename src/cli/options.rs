@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// Flags which accept arguments
-static ACCEPT_ARGUMENTS: &[&str] = &["-o", "--out", "-g", "-O"];
+static ACCEPT_ARGUMENTS: &[&str] = &["-o", "--out", "-g", "-O", "--llvm-target", "--llvm-layout"];
 
 /// Struct containing information regarding the command line arguments passed
 /// to the application
