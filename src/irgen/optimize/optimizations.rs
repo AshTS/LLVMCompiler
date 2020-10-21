@@ -1,4 +1,4 @@
-use crate::irgen::{Function, Value, OpCode};
+use crate::irgen::{Function, Value, OpCode, Literal};
 use crate::irgen::get_value_type;
 
 pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
@@ -261,11 +261,12 @@ pub fn optimization_dead_code(f: Function) -> Function
     {
         if !explored.contains(&index)
         {
-            // Do not remove return
+            // Do not remove return, instead replace it with Ret 0
             if let Some(inst) = func.instructions.get(&index)
             {
                 if inst.opcode == OpCode::Ret
                 {
+                    func.instructions.get_mut(&index).unwrap().arguments = vec![Value::Literal(Literal::new(0, func.return_type))];
                     continue;
                 }
             }
@@ -369,7 +370,7 @@ pub fn optimization_clean_registers(f: Function) -> Function
                         continue;
                     }
 
-                    if write_inst.opcode == OpCode::Mov
+                    if write_inst.opcode == OpCode::Mov || write_inst.opcode == OpCode::Alloc || write_inst.opcode == OpCode::Cast
                     {
                         if let Value::Literal(val) = write_inst.arguments[1]
                         {

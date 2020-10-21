@@ -1,6 +1,6 @@
 use crate::cli::Error;
 
-use crate::irgen::{Function, DataType, Symbol, Value, OpCode};
+use crate::irgen::{Function, DataType, NonPtrType, Symbol, Value, OpCode, get_value_type};
 
 use super::{convert_to_llvm, bytes_size_of};
 
@@ -73,7 +73,10 @@ impl FunctionGenerationContext
     /// Insert a label
     pub fn insert_label(&mut self, label: &str)
     {
-        self.result += &format!("  %{}:\n", label);
+        let l = self.render_value(&Value::Label(String::from(label)));
+        self.insert_command(&format!("br {}", l));
+        
+        self.result += &format!("\n  {}:\n", label);
     }
 
     /// Get the next temporary variable
@@ -146,7 +149,14 @@ impl FunctionGenerationContext
 
         if include_type
         {
-            format!("{} {}", convert_to_llvm(&dt), reg)
+            if !(dt.raw_type == NonPtrType::Void && dt.num_ptr == 0)
+            {
+                format!("{} {}", convert_to_llvm(&dt), reg)
+            }
+            else
+            {
+                format!("{}", convert_to_llvm(&dt))
+            }
         }
         else
         {
@@ -165,7 +175,22 @@ impl FunctionGenerationContext
             },
             Value::Literal(literal) =>
             {
-                format!("{} {}", convert_to_llvm(&literal.datatype), literal.value)
+                // If the type isn't void
+                if !(literal.datatype.raw_type == NonPtrType::Void && literal.datatype.num_ptr == 0)
+                {
+                    if literal.datatype.num_ptr == 0 && !literal.datatype.is_ref
+                    {
+                        format!("{} {}", convert_to_llvm(&literal.datatype), literal.value)
+                    }
+                    else
+                    {
+                        format!("{0} inttoptr (i64 {1} to {0})", convert_to_llvm(&literal.datatype), literal.value)
+                    }
+                }
+                else
+                {
+                    format!("{}", convert_to_llvm(&literal.datatype))
+                }
             },
             Value::Symbol(symbol) =>
             {
@@ -179,13 +204,13 @@ impl FunctionGenerationContext
     {
         match val
         {
-            Value::Label(label) =>
+            Value::Label(_) =>
             {
-                format!("label %{}", label)
+                panic!("The pointer of a label?!")
             },
-            Value::Literal(literal) =>
+            Value::Literal(_) =>
             {
-                format!("{} {}", convert_to_llvm(&literal.datatype), literal.value)
+                panic!("The pointer of a literal?!")
             },
             Value::Symbol(symbol) =>
             {
@@ -244,24 +269,46 @@ impl FunctionGenerationContext
             {
                 match inst.opcode
                 {
+                    // Return Command
                     OpCode::Ret =>
                     {
                         let val = self.render_value(&inst.arguments[0]).clone();
                         self.insert_command(&format!("ret {}", val));
                     },
+                    // Move or Allocate
                     OpCode::Mov | OpCode::Alloc =>
                     {
-                        if let Value::Symbol(symb0) = &inst.arguments[0]
+                        if let Some(datatype) = get_value_type(&inst.arguments[0])
                         {
-                            let val0 = self.render_pointer(&Value::Symbol(symb0.clone()));
-                            let val1 = self.render_value(&inst.arguments[1]).clone();
-                            self.insert_command(
-                                        &format!("store {}, {}", 
-                                                    val1,
-                                                    val0));
+                            // If the data type is not a reference, just store the value into a pointer to the first
+                            if !datatype.is_ref
+                            {
+                                let val0 = self.render_pointer(&inst.arguments[0]);
+                                let val1 = self.render_value(&inst.arguments[1]).clone();
+                                self.insert_command(
+                                            &format!("store {}, {}", 
+                                                        val1,
+                                                        val0));
+                            }
+                            // Otherwise, the target *is* the pointer
+                            else
+                            {
+                                let val0 = self.render_value(&inst.arguments[0]);
+                                let val1 = self.render_value(&inst.arguments[1]).clone();
+                                self.insert_command(
+                                            &format!("store {}, {}", 
+                                                        val1,
+                                                        val0));
+                            }
                         }
                     },
-                    _ => {}
+                    // Unconditional Jump
+                    OpCode::Jmp =>
+                    {
+                        let label = self.render_value(&inst.arguments[0]);
+                        self.insert_command(&format!("br {}", label));
+                    },
+                    _ => {println!("Not handling instruction {}", inst);}
                 }
             }
         }

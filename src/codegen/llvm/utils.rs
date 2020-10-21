@@ -3,7 +3,7 @@ use crate::irgen::{DataType, NonPtrType};
 /// Convert a type to a string in the format llvm uses (no u32 or u64, just i32, i64 etc.)
 pub fn convert_to_llvm(datatype: &DataType) -> String
 {
-    format!("{}", datatype).replace("u", "i")
+    format!("{}{}", datatype, if datatype.is_ref {"*"} else {""}).replace("u", "i").replace("&", "")
 }
 
 /// Gets the number of bytes in a type

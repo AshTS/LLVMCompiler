@@ -1,8 +1,11 @@
-define u32 @factorial(u32 %value)
+target triple = "avr-none"
+define void @main()
 {
-ret i32 10
-}
-define i32 @main()
-{
-ret i32 10
+    store i8 7, i8* inttoptr (i64 36 to i8*)
+    store i8 5, i8* inttoptr (i64 37 to i8*)
+    br label %L0
+
+  L0:
+    br label %L0
+    ret void
 }
