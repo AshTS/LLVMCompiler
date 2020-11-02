@@ -5,7 +5,7 @@ pub fn optimize_function(f: Function, level: usize, combine: bool) -> Function
 {
     let mut func = f.clone();
 
-    func = optimization_clean_branches(func);
+    // func = optimization_clean_branches(func);
     func = optimization_remove_nop(func);
 
     let mut last_loop = false;

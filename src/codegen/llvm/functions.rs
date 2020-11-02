@@ -245,6 +245,16 @@ impl FunctionGenerationContext
         }
     }
 
+    /// Add a compare command
+    pub fn add_compare(&mut self, command: String, dest: String, src0: &Value, src1: &Value)
+    {
+        let val0 = self.render_value(src0);
+        let val1_temp = self.render_value(src1);
+        let val1 = val1_temp.split(" ").nth(1).unwrap();
+
+        self.insert_command(&format!("{} = icmp {} {}, {}", dest,  command, val0, val1));
+    }
+
     /// Render an IR function in LLVM IR
     pub fn render_function(&mut self) -> Result<String, Error>
     {
@@ -306,18 +316,6 @@ impl FunctionGenerationContext
             }
 
             /* TODO:
-                Cne, // Compare Not Equal
-                Ceq, // Compare Equal
-                Clt, // Compare Less Than
-                Cgt, // Compare Greater Than
-                Cle, // Compare Less than or Equal
-                Cge, // Compare Greater than or Equal
-                Bne, // Branch Not Equals
-                Beq, // Branch Equals
-                Blt,
-                Bgt,
-                Ble,
-                Bge,
                 Add,
                 Sub,
                 Mul,
@@ -335,7 +333,7 @@ impl FunctionGenerationContext
 
             if let Some(inst) = &func.instructions.get(&i)
             {
-                match inst.opcode
+                match &inst.opcode
                 {
                     // Return Command
                     OpCode::Ret =>
@@ -364,46 +362,49 @@ impl FunctionGenerationContext
 
                         let mut current_type = convert_to_llvm(&src_type);
 
-                        // If the destination is smaller, truncation is necessary
-                        if dest_size < src_size
+                        if convert_to_llvm(&dest_type) != convert_to_llvm(&src_type)
                         {
-                            let next = self.get_next_temp();
-                            let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
-                            self.insert_command(&format!("{} = trunc {} {} to {}", next, current_type, current, next_type));
-                            
-                            current = next;
-                            current_type = next_type;
-                        }
-                        // If the destination is larger, extension is necessary
-                        else if dest_size > src_size
-                        {
-                            let next = self.get_next_temp();
-                            let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
-                            self.insert_command(&format!("{} = {} {} {} to {}", 
-                                current, if dest_type.is_signed() {"sext"} else {"zext"},
-                                current_type, current, current_type));
-
-                            current = next;
-                            current_type = next_type;
-                        }
-
-                        if dest_type.num_ptr > 0
-                        {
-                            // The source is not a pointer
-                            if src_type.num_ptr == 0
+                            // If the destination is smaller, truncation is necessary
+                            if dest_size < src_size
                             {
                                 let next = self.get_next_temp();
-                                self.insert_command(&format!("{} = inttoptr {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                                self.insert_command(&format!("{} = trunc {} {} to {}", next, current_type, current, next_type));
+                                
                                 current = next;
-                                current_type = convert_to_llvm(&dest_type);
+                                current_type = next_type;
                             }
-                            // The source is a pointer
-                            else
+                            // If the destination is larger, extension is necessary
+                            else if dest_size > src_size
                             {
                                 let next = self.get_next_temp();
-                                self.insert_command(&format!("{} = bitcast {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                                self.insert_command(&format!("{} = {} {} {} to {}", 
+                                    current, if dest_type.is_signed() {"sext"} else {"zext"},
+                                    current_type, current, current_type));
+
                                 current = next;
-                                current_type = convert_to_llvm(&dest_type);
+                                current_type = next_type;
+                            }
+
+                            if dest_type.num_ptr > 0
+                            {
+                                // The source is not a pointer
+                                if src_type.num_ptr == 0
+                                {
+                                    let next = self.get_next_temp();
+                                    self.insert_command(&format!("{} = inttoptr {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                    current = next;
+                                    current_type = convert_to_llvm(&dest_type);
+                                }
+                                // The source is a pointer
+                                else
+                                {
+                                    let next = self.get_next_temp();
+                                    self.insert_command(&format!("{} = bitcast {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                    current = next;
+                                    current_type = convert_to_llvm(&dest_type);
+                                }
                             }
                         }
 
@@ -427,6 +428,57 @@ impl FunctionGenerationContext
 
                             self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&dt), reg));
                         };
+                    },
+                    // Compare Commands
+                    OpCode::Cne | OpCode::Ceq | OpCode::Cge | OpCode::Cgt | OpCode::Cle | OpCode::Clt =>
+                    {
+                        let temp = self.get_next_temp();
+                        let temp2 = self.get_next_temp();
+
+                        let is_signed = get_value_type(&inst.arguments[1]).unwrap().is_signed();
+
+                        let command = String::from(
+                            match &inst.opcode
+                            {
+                                OpCode::Cne => "ne",
+                                OpCode::Ceq => "eq",
+                                OpCode::Cge => if is_signed {"sge"} else {"ge"},
+                                OpCode::Cle => if is_signed {"sle"} else {"le"},
+                                OpCode::Cgt => if is_signed {"sgt"} else {"gt"},
+                                OpCode::Clt => if is_signed {"slt"} else {"lt"}
+                                _ => panic!()
+                            }
+                        );
+
+                        self.add_compare(command, temp.clone(), &inst.arguments[1], &inst.arguments[2]);
+                        self.insert_command(&format!("{} = zext i1 {} to {}", &temp2, &temp, convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap())));
+                        self.add_move(&inst.arguments[0], temp2);
+                    },
+                    // Branch Commands
+                    OpCode::Bne | OpCode::Beq | OpCode::Bge | OpCode::Bgt | OpCode::Ble | OpCode::Blt =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let label_true = self.render_value(&inst.arguments[2]);
+                        let label_false = self.render_value(&inst.arguments[3]);
+
+                        let is_signed = get_value_type(&inst.arguments[0]).unwrap().is_signed();
+
+                        let command = String::from(
+                            match &inst.opcode
+                            {
+                                OpCode::Bne => "ne",
+                                OpCode::Beq => "eq",
+                                OpCode::Bge => if is_signed {"sge"} else {"ge"},
+                                OpCode::Ble => if is_signed {"sle"} else {"le"},
+                                OpCode::Bgt => if is_signed {"sgt"} else {"gt"},
+                                OpCode::Blt => if is_signed {"slt"} else {"lt"}
+                                _ => panic!()
+                            }
+                        );
+
+                        self.add_compare(command, temp.clone(), &inst.arguments[0], &inst.arguments[1]);
+                        self.insert_command(&format!("br i1 {}, {}, {}", &temp, label_true, label_false));
                     },
                     // Unconditional Jump
                     OpCode::Jmp =>
