@@ -4,15 +4,15 @@ u32 main(u32 argc, u8** argv)
 
     if 0
     {
-        ;
+        return 0;
     }
     else if 0
     {
-        ;
+        return 1;
     }
     else
     {
-        ;
+        return 2;
     }
 
     return argc;

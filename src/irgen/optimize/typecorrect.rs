@@ -82,5 +82,34 @@ pub fn correct_types(f: Function) -> Function
         }
     }
 
+    // Once all changes have been made, default to i32
+    for i in 0..func.instructions.len()
+    {
+        if let Some(inst) = func.instructions.get_mut(&i)
+        {
+            for i in 0.. inst.arguments.len()
+            {
+                let v = inst.arguments[i].clone();
+
+                if let Value::Symbol(mut symb) = v.clone()
+                {
+                    if symb.datatype.raw_type == NonPtrType::Unknown
+                    {
+                        symb.datatype = DataType::new(NonPtrType::I32, 0, false);
+                        inst.arguments[i] = Value::Symbol(symb);
+                    }
+                }
+
+                if let Value::Literal(mut lit) = v.clone()
+                {
+                    if lit.datatype.raw_type == NonPtrType::Unknown
+                    {
+                        lit.datatype = DataType::new(NonPtrType::I32, 0, false);
+                        inst.arguments[i] = Value::Literal(lit);
+                    }
+                }
+            }
+        }
+    }
     func
 }
