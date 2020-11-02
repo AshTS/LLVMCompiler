@@ -305,6 +305,34 @@ impl FunctionGenerationContext
                 self.insert_label(label.as_str());
             }
 
+            /* TODO:
+                Cne, // Compare Not Equal
+                Ceq, // Compare Equal
+                Clt, // Compare Less Than
+                Cgt, // Compare Greater Than
+                Cle, // Compare Less than or Equal
+                Cge, // Compare Greater than or Equal
+                Bne, // Branch Not Equals
+                Beq, // Branch Equals
+                Blt,
+                Bgt,
+                Ble,
+                Bge,
+                Add,
+                Sub,
+                Mul,
+                Div,
+                Mod,
+                Shl, // Shift Left
+                Shr, // Shift Right
+                And,
+                Or,
+                Xor,
+                Ref,
+                Array,
+                Push,
+                Call*/
+
             if let Some(inst) = &func.instructions.get(&i)
             {
                 match inst.opcode
@@ -332,29 +360,31 @@ impl FunctionGenerationContext
                         let dest_size = bytes_size_of(&dest_type);
                         let src_size = bytes_size_of(&src_type);
 
-                        let mut val = self.render_value(&inst.arguments[1]);
-
-                        let mut current = String::from(val.clone().split(" ").nth(1).unwrap());
+                        let mut current = String::from(self.render_value(&inst.arguments[1]).split(" ").nth(1).unwrap());
 
                         let mut current_type = convert_to_llvm(&src_type);
 
                         // If the destination is smaller, truncation is necessary
                         if dest_size < src_size
                         {
-                            current = self.get_next_temp();
-                            current_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
-                            self.insert_command(&format!("{} = trunc {} to {}", current, val, current_type));
-                            val = current.clone();
+                            let next = self.get_next_temp();
+                            let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                            self.insert_command(&format!("{} = trunc {} {} to {}", next, current_type, current, next_type));
+                            
+                            current = next;
+                            current_type = next_type;
                         }
                         // If the destination is larger, extension is necessary
                         else if dest_size > src_size
                         {
-                            current = self.get_next_temp();
-                            current_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
-                            self.insert_command(&format!("{} = {} {} to {}", 
+                            let next = self.get_next_temp();
+                            let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                            self.insert_command(&format!("{} = {} {} {} to {}", 
                                 current, if dest_type.is_signed() {"sext"} else {"zext"},
-                                val, current_type));
-                            val = current.clone();
+                                current_type, current, current_type));
+
+                            current = next;
+                            current_type = next_type;
                         }
 
                         if dest_type.num_ptr > 0
@@ -404,6 +434,8 @@ impl FunctionGenerationContext
                         let label = self.render_value(&inst.arguments[0]);
                         self.insert_command(&format!("br {}", label));
                     },
+                    // This should never happen, but if it does, ignore it
+                    OpCode::Nop => {},
                     _ => {println!("Not handling instruction {}", inst);}
                 }
             }
