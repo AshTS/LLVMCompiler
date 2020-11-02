@@ -219,6 +219,32 @@ impl FunctionGenerationContext
         }
     }
 
+    /// Add a move via the syntax of the 'store' command
+    pub fn add_move(&mut self, dest: &Value, src: String)
+    {
+        if let Some(datatype) = get_value_type(dest)
+        {
+            // If the data type is not a reference, just store the value into a pointer to the first
+            if !datatype.is_ref
+            {
+                let val0 = self.render_pointer(dest);
+                self.insert_command(
+                            &format!("store {}, {}", 
+                                        src,
+                                        val0));
+            }
+            // Otherwise, the target *is* the pointer
+            else
+            {
+                let val0 = self.render_value(dest);
+                self.insert_command(
+                            &format!("store {}, {}", 
+                                        src,
+                                        val0));
+            }
+        }
+    }
+
     /// Render an IR function in LLVM IR
     pub fn render_function(&mut self) -> Result<String, Error>
     {
@@ -278,29 +304,27 @@ impl FunctionGenerationContext
                     // Move or Allocate
                     OpCode::Mov | OpCode::Alloc =>
                     {
-                        if let Some(datatype) = get_value_type(&inst.arguments[0])
+                        let val = self.render_value(&inst.arguments[1]);
+                        self.add_move(&inst.arguments[0], val);
+                    },
+                    // Dereference Command
+                    OpCode::Deref =>
+                    {
+                        if let Value::Symbol(var) = &inst.arguments[0]
                         {
-                            // If the data type is not a reference, just store the value into a pointer to the first
-                            if !datatype.is_ref
-                            {
-                                let val0 = self.render_pointer(&inst.arguments[0]);
-                                let val1 = self.render_value(&inst.arguments[1]).clone();
-                                self.insert_command(
-                                            &format!("store {}, {}", 
-                                                        val1,
-                                                        val0));
-                            }
-                            // Otherwise, the target *is* the pointer
-                            else
-                            {
-                                let val0 = self.render_value(&inst.arguments[0]);
-                                let val1 = self.render_value(&inst.arguments[1]).clone();
-                                self.insert_command(
-                                            &format!("store {}, {}", 
-                                                        val1,
-                                                        val0));
-                            }
-                        }
+                            let reg = self.get_next_temp();
+                            let dt = self.values.get(&var.title).unwrap().get_datatype();
+
+                            let val = self.render_value(&inst.arguments[1]);
+
+                            self.insert_command(&format!("{} = load {}, {}, align {}", 
+                                            reg, 
+                                            convert_to_llvm(&dt),
+                                            val,
+                                            bytes_size_of(&var.datatype)));
+
+                            self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&dt), reg));
+                        };
                     },
                     // Unconditional Jump
                     OpCode::Jmp =>
