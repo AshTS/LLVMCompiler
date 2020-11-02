@@ -370,7 +370,7 @@ pub fn optimization_clean_registers(f: Function) -> Function
                         continue;
                     }
 
-                    if write_inst.opcode == OpCode::Mov || write_inst.opcode == OpCode::Alloc || write_inst.opcode == OpCode::Cast
+                    if write_inst.opcode == OpCode::Mov || write_inst.opcode == OpCode::Alloc
                     {
                         if let Value::Literal(val) = write_inst.arguments[1]
                         {

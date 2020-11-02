@@ -38,6 +38,23 @@ impl DataType
             is_ref: is_ref
         }
     }
+
+    /// Is the datatype signed
+    pub fn is_signed(&self) -> bool
+    {
+        if self.num_ptr > 0 || self.is_ref
+        {
+            false
+        }
+        else
+        {
+            match self.raw_type
+            {
+                NonPtrType::I8 | NonPtrType::I16 | NonPtrType::I32 | NonPtrType::I64 => true,
+                _ => false
+            }
+        }   
+    }
 }
 
 impl fmt::Display for DataType

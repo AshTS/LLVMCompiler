@@ -141,11 +141,11 @@ impl FunctionGenerationContext
         let ptr = self.values.get(&var.title).unwrap().ptr.clone();
 
         self.insert_command(&format!("{} = load {}, {} {}, align {}", 
-                                           reg, 
-                                           convert_to_llvm(&dt),
-                                           convert_to_llvm(&pdt),
-                                           ptr,
-                                           bytes_size_of(&var.datatype)));
+                                        reg, 
+                                        convert_to_llvm(&dt),
+                                        convert_to_llvm(&pdt),
+                                        ptr,
+                                        bytes_size_of(&var.datatype)));
 
         if include_type
         {
@@ -259,14 +259,19 @@ impl FunctionGenerationContext
         // Arguments
         self.result += "(";
 
+        let mut argument_names = vec![];
+
         for (i, (name, datatype)) in func.arguments.iter().enumerate()
         {
-            self.result += &format!("{} %{}", convert_to_llvm(datatype), name);
+            let s = format!("{} %{}", convert_to_llvm(datatype), name);
+            self.result += &s;
 
             if i < func.arguments.len() - 1
             {
                 self.result += ", ";
             }
+
+            argument_names.push((name.clone(), s));
         }
 
         self.result += ")\n";
@@ -278,7 +283,16 @@ impl FunctionGenerationContext
         // Allocate all of the space required for the symbols
         for symbol in func.get_all_symbols()
         {
-            self.create_new_value(symbol.title, symbol.datatype);
+            self.create_new_value(symbol.title.clone(), symbol.datatype);
+
+            // If the symbol is an argument, load the argument into the value
+            for arg in &argument_names
+            {
+                if symbol.title.clone() == arg.0
+                {
+                    self.add_move(&Value::Symbol(symbol.clone()), arg.1.clone());
+                }
+            }
         }
 
         // Go over every instruction
@@ -306,6 +320,64 @@ impl FunctionGenerationContext
                     {
                         let val = self.render_value(&inst.arguments[1]);
                         self.add_move(&inst.arguments[0], val);
+                    },
+                    // Cast
+                    OpCode::Cast =>
+                    {
+                        // Extract the types
+                        let dest_type = get_value_type(&inst.arguments[0]).unwrap();
+                        let src_type = get_value_type(&inst.arguments[1]).unwrap();
+
+                        // Get the sizes of the types
+                        let dest_size = bytes_size_of(&dest_type);
+                        let src_size = bytes_size_of(&src_type);
+
+                        let mut val = self.render_value(&inst.arguments[1]);
+
+                        let mut current = String::from(val.clone().split(" ").nth(1).unwrap());
+
+                        let mut current_type = convert_to_llvm(&src_type);
+
+                        // If the destination is smaller, truncation is necessary
+                        if dest_size < src_size
+                        {
+                            current = self.get_next_temp();
+                            current_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                            self.insert_command(&format!("{} = trunc {} to {}", current, val, current_type));
+                            val = current.clone();
+                        }
+                        // If the destination is larger, extension is necessary
+                        else if dest_size > src_size
+                        {
+                            current = self.get_next_temp();
+                            current_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
+                            self.insert_command(&format!("{} = {} {} to {}", 
+                                current, if dest_type.is_signed() {"sext"} else {"zext"},
+                                val, current_type));
+                            val = current.clone();
+                        }
+
+                        if dest_type.num_ptr > 0
+                        {
+                            // The source is not a pointer
+                            if src_type.num_ptr == 0
+                            {
+                                let next = self.get_next_temp();
+                                self.insert_command(&format!("{} = inttoptr {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                current = next;
+                                current_type = convert_to_llvm(&dest_type);
+                            }
+                            // The source is a pointer
+                            else
+                            {
+                                let next = self.get_next_temp();
+                                self.insert_command(&format!("{} = bitcast {} {} to {}", next, current_type, current, convert_to_llvm(&dest_type)));
+                                current = next;
+                                current_type = convert_to_llvm(&dest_type);
+                            }
+                        }
+
+                        self.add_move(&inst.arguments[0], format!("{} {}", current_type, current));
                     },
                     // Dereference Command
                     OpCode::Deref =>

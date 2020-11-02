@@ -1,0 +1,4 @@
+i8* test(u16* a)
+{
+    return a as i8*;
+}
