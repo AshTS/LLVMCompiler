@@ -47,7 +47,8 @@ pub struct FunctionGenerationContext
     func: Function,
     values: HashMap<String, LLVMValue>,
     next_temp: usize,
-    result: String
+    result: String,
+    current_arguments: String,
 }
 
 impl FunctionGenerationContext
@@ -60,7 +61,8 @@ impl FunctionGenerationContext
             func,
             values: HashMap::new(),
             next_temp: 0,
-            result: String::new()
+            result: String::new(),
+            current_arguments: String::new()
         }
     }
 
@@ -341,12 +343,8 @@ impl FunctionGenerationContext
             }
 
             /* TODO:
-                Shl, // Shift Left
-                Shr, // Shift Right
                 Ref,
-                Array,
-                Push,
-                Call*/
+                Array*/
 
             if let Some(inst) = &func.instructions.get(&i)
             {
@@ -459,17 +457,17 @@ impl FunctionGenerationContext
                             {
                                 OpCode::Cne => "ne",
                                 OpCode::Ceq => "eq",
-                                OpCode::Cge => if is_signed {"sge"} else {"ge"},
-                                OpCode::Cle => if is_signed {"sle"} else {"le"},
-                                OpCode::Cgt => if is_signed {"sgt"} else {"gt"},
-                                OpCode::Clt => if is_signed {"slt"} else {"lt"}
+                                OpCode::Cge => if is_signed {"sge"} else {"uge"},
+                                OpCode::Cle => if is_signed {"sle"} else {"ule"},
+                                OpCode::Cgt => if is_signed {"sgt"} else {"ugt"},
+                                OpCode::Clt => if is_signed {"slt"} else {"ult"}
                                 _ => panic!()
                             }
                         );
 
                         self.add_compare(command, temp.clone(), &inst.arguments[1], &inst.arguments[2]);
                         self.insert_command(&format!("{} = zext i1 {} to {}", &temp2, &temp, convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap())));
-                        self.add_move(&inst.arguments[0], temp2);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp2));
                     },
                     // Branch Commands
                     OpCode::Bne | OpCode::Beq | OpCode::Bge | OpCode::Bgt | OpCode::Ble | OpCode::Blt =>
@@ -486,10 +484,10 @@ impl FunctionGenerationContext
                             {
                                 OpCode::Bne => "ne",
                                 OpCode::Beq => "eq",
-                                OpCode::Bge => if is_signed {"sge"} else {"ge"},
-                                OpCode::Ble => if is_signed {"sle"} else {"le"},
-                                OpCode::Bgt => if is_signed {"sgt"} else {"gt"},
-                                OpCode::Blt => if is_signed {"slt"} else {"lt"}
+                                OpCode::Bge => if is_signed {"sge"} else {"uge"},
+                                OpCode::Ble => if is_signed {"sle"} else {"ule"},
+                                OpCode::Bgt => if is_signed {"sgt"} else {"ugt"},
+                                OpCode::Blt => if is_signed {"slt"} else {"ult"}
                                 _ => panic!()
                             }
                         );
@@ -506,7 +504,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = add {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Sub Command
                     OpCode::Sub =>
@@ -517,7 +515,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = sub {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Mul Command
                     OpCode::Mul =>
@@ -528,7 +526,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = mul {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Div Command
                     OpCode::Div =>
@@ -539,7 +537,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = div {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // And Command
                     OpCode::And =>
@@ -550,7 +548,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = and {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Or Command
                     OpCode::Or =>
@@ -561,7 +559,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = or {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Xor Command
                     OpCode::Xor =>
@@ -572,7 +570,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = xor {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Mod Command
                     OpCode::Mod =>
@@ -583,7 +581,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = {} {}, {}", temp, if get_value_type(&inst.arguments[1]).unwrap().is_signed() {"srem"} else {"urem"}, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Shl Command
                     OpCode::Shl =>
@@ -594,7 +592,7 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = shl {}, {}", temp, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
                     },
                     // Shr Command
                     OpCode::Shr =>
@@ -605,7 +603,36 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = {} {}, {}", temp, if get_value_type(&inst.arguments[1]).unwrap().is_signed() {"lshr"} else {"ashr"}, val0, val1));
-                        self.add_move(&inst.arguments[0], temp);
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
+                    },
+                    // Push Command
+                    OpCode::Push =>
+                    {
+                        let arg = self.render_value(&inst.arguments[0], true);
+                        self.current_arguments += &format!("{}, ", arg);
+                    },
+                    // Call Command
+                    OpCode::Call =>
+                    {
+                        let temp = self.get_next_temp();
+                        if let Value::Label(func_label) = &inst.arguments[1]
+                        {
+                            if self.current_arguments.len() > 0
+                            {
+                                self.current_arguments.pop();
+                                self.current_arguments.pop();
+                            }
+
+                            self.insert_command(&format!("{} = call {} @{}({})",
+                                                    temp, 
+                                                    convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()),
+                                                    func_label,
+                                                    self.current_arguments));
+
+                            self.current_arguments = String::new();
+
+                            self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
+                        }
                     },
                     // Unconditional Jump
                     OpCode::Jmp =>

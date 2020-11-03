@@ -5,12 +5,5 @@ u32 factorial(u32 value)
 
 i32 main()
 {
-    u32 i = 0;
-
-    while (i < 5)
-    {
-        factorial(i++);
-    }
-
-    return 0;
+    return factorial(5) as i32;
 }

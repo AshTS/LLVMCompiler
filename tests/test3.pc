@@ -1,19 +1,9 @@
+u32 test()
+{
+    return 5;
+}
+
 u32 main(u32 argc, u8** argv)
 {
-    u32 i = 0, j = 1;
-
-    if 0
-    {
-        return 0;
-    }
-    else if 0
-    {
-        return 1;
-    }
-    else
-    {
-        return 2;
-    }
-
-    return argc;
+    return test();
 }
