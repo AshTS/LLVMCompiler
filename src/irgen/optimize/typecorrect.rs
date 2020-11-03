@@ -1,4 +1,4 @@
-use crate::irgen::{Function, Value, DataType, NonPtrType};
+use crate::irgen::{Function, Value, DataType, NonPtrType, OpCode};
 use crate::irgen::{force_mutate_type};
 
 use std::collections::HashMap;
@@ -18,6 +18,8 @@ pub fn correct_types(f: Function) -> Function
         {
             if let Some(inst) = func.instructions.get_mut(&i)
             {
+                if inst.opcode == OpCode::Array {continue;}
+
                 let mut datatype = DataType::new(NonPtrType::Unknown, 0, false);
 
                 for arg in &inst.arguments

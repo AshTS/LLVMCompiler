@@ -146,7 +146,7 @@ impl Expression
                     ExpressionTypeP::Modulus | ExpressionTypeP::ShiftLeft | ExpressionTypeP::ShiftRight | ExpressionTypeP::LessThan |
                     ExpressionTypeP::LessThanOrEqual | ExpressionTypeP::GreaterThan | ExpressionTypeP::GreaterThanOrEqual |
                     ExpressionTypeP::Equal | ExpressionTypeP::NotEqual | ExpressionTypeP::BitwiseAnd | ExpressionTypeP::BitwiseOr |
-                    ExpressionTypeP::BitwiseXor |ExpressionTypeP::ArrayAccess => 
+                    ExpressionTypeP::BitwiseXor => 
                     {
                         let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
                         let child1 = Expression::from_parse_tree_node(children[1].clone(), func)?;
@@ -170,10 +170,16 @@ impl Expression
                                 ExpressionTypeP::BitwiseAnd => OpCode::And,
                                 ExpressionTypeP::BitwiseOr => OpCode::Or,
                                 ExpressionTypeP::BitwiseXor => OpCode::Xor,
-                                ExpressionTypeP::ArrayAccess => OpCode::Array,
                                 _ => {unreachable!();}
                             }
                         ), None, vec![child0, child1]))
+                    },
+                    ExpressionTypeP::ArrayAccess =>
+                    {
+                        let child0 = Expression::from_parse_tree_node(children[0].clone(), func)?;
+                        let child1 = Expression::from_parse_tree_node(children[1].clone(), func)?;
+
+                        Ok(Expression::new(ExpressionType::ArrayAccess, None, vec![child0, child1]))
                     },
                     ExpressionTypeP::AddAssign =>
                     {
@@ -386,6 +392,28 @@ impl Expression
                 self.value = Some(value.clone());
 
                 func.borrow_mut().add_instruction(Instruction::new(opcode, vec![
+                    value,
+                    val0,
+                    val1,
+                    ]));
+            },
+            ExpressionType::ArrayAccess =>
+            {
+                self.children[0].render(func)?;
+                self.children[1].render(func)?;
+
+                let val0 = self.children[0].value(func)?;
+                let mut val1 = self.children[1].value(func)?;
+
+                val1 = attempt_mutate_type(val1, DataType::new(NonPtrType::U64, 0, false));
+
+                let mut dt = get_value_type(&val0).unwrap();
+                dt.num_ptr -= 1;
+                
+                let value = Value::Symbol(Symbol::new(func.borrow_mut().get_register(), correct_type_references(dt)));
+                self.value = Some(value.clone());
+
+                func.borrow_mut().add_instruction(Instruction::new(OpCode::Array, vec![
                     value,
                     val0,
                     val1,
@@ -748,7 +776,6 @@ impl Expression
                 // Place the exit label
                 func.borrow_mut().place_label_here(exit.clone());
             },
-            _ => {unimplemented!()}
         }
 
         Ok(())

@@ -343,11 +343,12 @@ impl FunctionGenerationContext
             }
 
             /* TODO:
-                Ref,
-                Array*/
+                Ref*/
 
             if let Some(inst) = &func.instructions.get(&i)
             {
+                self.result += &format!("\n; {}\n", inst);
+
                 match &inst.opcode
                 {
                     // Return Command
@@ -377,10 +378,18 @@ impl FunctionGenerationContext
 
                         let mut current_type = convert_to_llvm(&src_type);
 
+                        if src_type.num_ptr > 0
+                        {
+                            let next = self.get_next_temp();
+                            self.insert_command(&format!("{} = ptrtoint {} {} to i64", next, current_type, current));
+                            current = next;
+                            current_type = String::from("i64");
+                        }
+
                         if convert_to_llvm(&dest_type) != convert_to_llvm(&src_type)
                         {
                             // If the destination is smaller, truncation is necessary
-                            if dest_size < src_size
+                            if dest_size < src_size && current_type != if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")}
                             {
                                 let next = self.get_next_temp();
                                 let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
@@ -390,13 +399,13 @@ impl FunctionGenerationContext
                                 current_type = next_type;
                             }
                             // If the destination is larger, extension is necessary
-                            else if dest_size > src_size
+                            else if dest_size > src_size && current_type != if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")}
                             {
                                 let next = self.get_next_temp();
                                 let next_type = if dest_type.num_ptr == 0 {convert_to_llvm(&dest_type)} else {String::from("i64")};
                                 self.insert_command(&format!("{} = {} {} {} to {}", 
-                                    current, if dest_type.is_signed() {"sext"} else {"zext"},
-                                    current_type, current, current_type));
+                                    next, if dest_type.is_signed() {"sext"} else {"zext"},
+                                    current_type, current, next_type));
 
                                 current = next;
                                 current_type = next_type;
@@ -604,6 +613,25 @@ impl FunctionGenerationContext
 
                         self.insert_command(&format!("{} = {} {}, {}", temp, if get_value_type(&inst.arguments[1]).unwrap().is_signed() {"lshr"} else {"ashr"}, val0, val1));
                         self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp));
+                    },
+                    // Array Command
+                    OpCode::Array =>
+                    {
+                        let temp = self.get_next_temp();
+                        let temp2 = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], true);
+
+                        let val_type = convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap());
+                        let ptr_type = convert_to_llvm(&get_value_type(&inst.arguments[1]).unwrap());
+
+                        self.insert_command(&format!("{} = getelementptr {}, {}, {}", temp, val_type, val0, val1));
+
+                        self.insert_command(&format!("{} = load {}, {} {}, align {}", temp2, val_type, ptr_type, temp,
+                                            bytes_size_of(&get_value_type(&inst.arguments[0]).unwrap())));
+
+                        self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&get_value_type(&inst.arguments[0]).unwrap()), temp2));
                     },
                     // Push Command
                     OpCode::Push =>

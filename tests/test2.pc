@@ -3,7 +3,12 @@ u32 factorial(u32 value)
     return (value < 2) ? 1 : (value * factorial(value - 1));
 }
 
-i32 main()
+i32 main(i32 argc, i8** argv)
 {
-    return factorial(5) as i32;
+    if argc < 2
+    {
+        return -1;
+    }
+
+    return (argv[1][0] as i32) - 48;
 }

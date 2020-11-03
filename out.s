@@ -27,8 +27,7 @@ factorial:                              # @factorial
 	decl	%edi
 	movl	%edi, (%rsp)
 	callq	factorial
-	movl	4(%rsp), %eax
-	imull	(%rsp), %eax
+	imull	4(%rsp), %eax
 	movl	%eax, (%rsp)
 	movl	(%rsp), %eax
 	popq	%rcx
@@ -44,13 +43,28 @@ factorial:                              # @factorial
 main:                                   # @main
 	.cfi_startproc
 # %bb.0:
-	pushq	%rax
-	.cfi_def_cfa_offset 16
-	movl	$5, %edi
-	callq	factorial
-	movl	4(%rsp), %eax
-	popq	%rcx
-	.cfi_def_cfa_offset 8
+	movl	%edi, -32(%rsp)
+	movq	%rsi, -24(%rsp)
+	xorl	%eax, %eax
+	cmpl	$2, %edi
+	setl	%al
+	cmpl	$1, %edi
+	movl	%eax, -12(%rsp)
+	jg	.LBB1_2
+# %bb.1:                                # %L0
+	movl	$-1, -32(%rsp)
+	movl	-32(%rsp), %eax
+	retq
+.LBB1_2:                                # %L1
+	movq	-24(%rsp), %rax
+	movq	8(%rax), %rax
+	movq	%rax, -8(%rsp)
+	movsbl	(%rax), %eax
+	movb	%al, -25(%rsp)
+	addl	$-48, %eax
+	movl	%eax, -16(%rsp)
+	movl	%eax, -32(%rsp)
+	movl	-32(%rsp), %eax
 	retq
 .Lfunc_end1:
 	.size	main, .Lfunc_end1-main
