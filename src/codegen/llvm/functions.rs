@@ -453,6 +453,20 @@ impl FunctionGenerationContext
                             self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&dt), reg));
                         };
                     },
+                    // Dereference Command
+                    OpCode::Ref =>
+                    {
+                        if let Value::Symbol(var0) = &inst.arguments[0]
+                        {
+                            if let Value::Symbol(var1) = &inst.arguments[1]
+                            {
+                                let ptr_dt = self.values.get(&var0.title).unwrap().get_pointer_datatype();
+                                let ptr = self.values.get(&var1.title).unwrap().ptr.clone();
+
+                                self.add_move(&inst.arguments[0], format!("{} {}", convert_to_llvm(&ptr_dt), ptr));
+                            }
+                        };
+                    },
                     // Compare Commands
                     OpCode::Cne | OpCode::Ceq | OpCode::Cge | OpCode::Cgt | OpCode::Cle | OpCode::Clt =>
                     {
@@ -669,8 +683,7 @@ impl FunctionGenerationContext
                         self.insert_command(&format!("br {}", label));
                     },
                     // This should never happen, but if it does, ignore it
-                    OpCode::Nop => {},
-                    _ => {println!("Not handling instruction {}", inst);}
+                    OpCode::Nop => {}
                 }
             }
         }
