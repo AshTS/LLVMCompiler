@@ -73,7 +73,7 @@ impl FunctionGenerationContext
     /// Insert a label
     pub fn insert_label(&mut self, label: &str)
     {
-        let l = self.render_value(&Value::Label(String::from(label)));
+        let l = self.render_value(&Value::Label(String::from(label)), false);
         self.insert_command(&format!("br {}", l));
         
         self.result += &format!("\n  {}:\n", label);
@@ -165,7 +165,7 @@ impl FunctionGenerationContext
     }
 
     /// Render a value for direct insertion into a command
-    pub fn render_value(&mut self, val: &Value) -> String
+    pub fn render_value(&mut self, val: &Value, include_type: bool) -> String
     {
         match val
         {
@@ -180,21 +180,42 @@ impl FunctionGenerationContext
                 {
                     if literal.datatype.num_ptr == 0 && !literal.datatype.is_ref
                     {
-                        format!("{} {}", convert_to_llvm(&literal.datatype), literal.value)
+                        if include_type
+                        {
+                            format!("{} {}", convert_to_llvm(&literal.datatype), literal.value)
+                        }
+                        else
+                        {
+                            format!("{}", literal.value)
+                        }
                     }
                     else
                     {
-                        format!("{0} inttoptr (i64 {1} to {0})", convert_to_llvm(&literal.datatype), literal.value)
+                        if include_type
+                        {
+                            format!("{0} inttoptr (i64 {1} to {0})", convert_to_llvm(&literal.datatype), literal.value)
+                        }
+                        else
+                        {
+                            format!("inttoptr (i64 {1} to {0})", convert_to_llvm(&literal.datatype), literal.value)
+                        }
                     }
                 }
                 else
                 {
-                    format!("{}", convert_to_llvm(&literal.datatype))
+                    if include_type
+                    {
+                        format!("{}", convert_to_llvm(&literal.datatype))
+                    }
+                    else
+                    {
+                        format!("")
+                    }
                 }
             },
             Value::Symbol(symbol) =>
             {
-                self.get_value(symbol, true)
+                self.get_value(symbol, include_type)
             }
         }
     }
@@ -236,7 +257,7 @@ impl FunctionGenerationContext
             // Otherwise, the target *is* the pointer
             else
             {
-                let val0 = self.render_value(dest);
+                let val0 = self.render_value(dest, true);
                 self.insert_command(
                             &format!("store {}, {}", 
                                         src,
@@ -248,9 +269,8 @@ impl FunctionGenerationContext
     /// Add a compare command
     pub fn add_compare(&mut self, command: String, dest: String, src0: &Value, src1: &Value)
     {
-        let val0 = self.render_value(src0);
-        let val1_temp = self.render_value(src1);
-        let val1 = val1_temp.split(" ").nth(1).unwrap();
+        let val0 = self.render_value(src0, true);
+        let val1 = self.render_value(src1, false);
 
         self.insert_command(&format!("{} = icmp {} {}, {}", dest,  command, val0, val1));
     }
@@ -293,6 +313,11 @@ impl FunctionGenerationContext
         // Allocate all of the space required for the symbols
         for symbol in func.get_all_symbols()
         {
+            if symbol.datatype.raw_type == NonPtrType::Void
+            {
+                continue;
+            }
+
             self.create_new_value(symbol.title.clone(), symbol.datatype);
 
             // If the symbol is an argument, load the argument into the value
@@ -316,10 +341,6 @@ impl FunctionGenerationContext
             }
 
             /* TODO:
-                Add,
-                Sub,
-                Mul,
-                Div,
                 Mod,
                 Shl, // Shift Left
                 Shr, // Shift Right
@@ -338,13 +359,13 @@ impl FunctionGenerationContext
                     // Return Command
                     OpCode::Ret =>
                     {
-                        let val = self.render_value(&inst.arguments[0]).clone();
+                        let val = self.render_value(&inst.arguments[0], true).clone();
                         self.insert_command(&format!("ret {}", val));
                     },
                     // Move or Allocate
                     OpCode::Mov | OpCode::Alloc =>
                     {
-                        let val = self.render_value(&inst.arguments[1]);
+                        let val = self.render_value(&inst.arguments[1], true);
                         self.add_move(&inst.arguments[0], val);
                     },
                     // Cast
@@ -358,7 +379,7 @@ impl FunctionGenerationContext
                         let dest_size = bytes_size_of(&dest_type);
                         let src_size = bytes_size_of(&src_type);
 
-                        let mut current = String::from(self.render_value(&inst.arguments[1]).split(" ").nth(1).unwrap());
+                        let mut current = self.render_value(&inst.arguments[1], false);
 
                         let mut current_type = convert_to_llvm(&src_type);
 
@@ -418,7 +439,7 @@ impl FunctionGenerationContext
                             let reg = self.get_next_temp();
                             let dt = self.values.get(&var.title).unwrap().get_datatype();
 
-                            let val = self.render_value(&inst.arguments[1]);
+                            let val = self.render_value(&inst.arguments[1], true);
 
                             self.insert_command(&format!("{} = load {}, {}, align {}", 
                                             reg, 
@@ -459,8 +480,8 @@ impl FunctionGenerationContext
                     {
                         let temp = self.get_next_temp();
 
-                        let label_true = self.render_value(&inst.arguments[2]);
-                        let label_false = self.render_value(&inst.arguments[3]);
+                        let label_true = self.render_value(&inst.arguments[2], true);
+                        let label_false = self.render_value(&inst.arguments[3], true);
 
                         let is_signed = get_value_type(&inst.arguments[0]).unwrap().is_signed();
 
@@ -480,10 +501,54 @@ impl FunctionGenerationContext
                         self.add_compare(command, temp.clone(), &inst.arguments[0], &inst.arguments[1]);
                         self.insert_command(&format!("br i1 {}, {}, {}", &temp, label_true, label_false));
                     },
+                    // Add Command
+                    OpCode::Add =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = add {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Sub Command
+                    OpCode::Sub =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = sub {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Mul Command
+                    OpCode::Mul =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = mul {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Div Command
+                    OpCode::Div =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = div {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
                     // Unconditional Jump
                     OpCode::Jmp =>
                     {
-                        let label = self.render_value(&inst.arguments[0]);
+                        let label = self.render_value(&inst.arguments[0], true);
                         self.insert_command(&format!("br {}", label));
                     },
                     // This should never happen, but if it does, ignore it
