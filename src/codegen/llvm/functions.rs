@@ -341,12 +341,8 @@ impl FunctionGenerationContext
             }
 
             /* TODO:
-                Mod,
                 Shl, // Shift Left
                 Shr, // Shift Right
-                And,
-                Or,
-                Xor,
                 Ref,
                 Array,
                 Push,
@@ -543,6 +539,72 @@ impl FunctionGenerationContext
                         let val1 =  self.render_value(&inst.arguments[2], false);
 
                         self.insert_command(&format!("{} = div {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // And Command
+                    OpCode::And =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = and {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Or Command
+                    OpCode::Or =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = or {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Xor Command
+                    OpCode::Xor =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = xor {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Mod Command
+                    OpCode::Mod =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = {} {}, {}", temp, if get_value_type(&inst.arguments[1]).unwrap().is_signed() {"srem"} else {"urem"}, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Shl Command
+                    OpCode::Shl =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = shl {}, {}", temp, val0, val1));
+                        self.add_move(&inst.arguments[0], temp);
+                    },
+                    // Shr Command
+                    OpCode::Shr =>
+                    {
+                        let temp = self.get_next_temp();
+
+                        let val0 = self.render_value(&inst.arguments[1], true);
+                        let val1 =  self.render_value(&inst.arguments[2], false);
+
+                        self.insert_command(&format!("{} = {} {}, {}", temp, if get_value_type(&inst.arguments[1]).unwrap().is_signed() {"lshr"} else {"ashr"}, val0, val1));
                         self.add_move(&inst.arguments[0], temp);
                     },
                     // Unconditional Jump
