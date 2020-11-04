@@ -170,6 +170,16 @@ llc out.ll
 
 finally, assembling the assembly output from `llc`
 
+```
+gcc out.S -o compiled
+```
+
+which produces the executable.
+
+```
+./compiled
+```
+
 ## Restrictions
 
 One of the largest restrictions is in the typing system, there are some requirements which are imposed by llvm IR which means that casts must be explicit in many circumstances.
