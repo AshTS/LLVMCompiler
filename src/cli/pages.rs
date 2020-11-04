@@ -13,7 +13,6 @@ pub fn display_help()
     println!("     --stdout                  Display the output on stdout");
     println!(" -T  --tree                    Display the parse tree");
     println!("\nAllowable Codegen Modes:");
-    println!("   avrasm");
     println!("   ir");
     println!("   llvm");
 }

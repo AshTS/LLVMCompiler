@@ -133,3 +133,53 @@ u32 fibb(u32 index)
     return b;
 }
 ```
+
+## Command Line Options
+
+```
+Usage: compiler [options] file...
+Options:
+     --help                    Display this page
+ -g                [MODE]      Set the code gen mode to use
+     --llvm-layout [LAYOUT]    Sets the target data layout for LLVM
+     --llvm-target [TARGET]    Sets the target triple for LLVM
+     --nocomp                  Do not collapse register usage
+ -o                [FILE]      Redirect the output to the given file
+ -O                [VAL]       Set the optimization level (defaults to 2)
+     --stdout                  Display the output on stdout
+ -T  --tree                    Display the parse tree
+
+Allowable Codegen Modes:
+   ir
+   llvm
+```
+
+## Instructions
+
+Fully compiling a .pc file to an executable on Linux is done by first running the compiler:
+
+```
+cargo run -- file.pc -o out.ll -O 3 -g llvm
+```
+
+next is compiling the llvm IR
+
+```
+llc out.ll
+```
+
+finally, assembling the assembly output from `llc`
+
+## Restrictions
+
+One of the largest restrictions is in the typing system, there are some requirements which are imposed by llvm IR which means that casts must be explicit in many circumstances.
+
+There are several other restrictions again due to llvm IR limitations, specifically pointer addition is heavily restricted, however again, casts can generally correct this.
+
+Optimizations are performed on the internal IR, not on the llvm IR, as such the llvm IR produced can be very inefficent.
+
+Finally, there are many smaller bugs more specific to situations.
+
+## Future
+
+Currently, this project is shelved, however I hope to come back to it and do some further testing and make the llvm IR generation more robust.
